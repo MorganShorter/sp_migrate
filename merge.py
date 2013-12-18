@@ -37,7 +37,7 @@ IMPORTNOTE_TABLEMAP = {
 
 #    return source_row, source_data
 
-def add_import_match_detail(matched_target_model, from_src_model):
+def add_import_match_detail(matched_target_model, from_src_model, from_src_field=None):
     #row, data = get_location_and_data_of_source_row(matched_target_model, from_src_model)
     src_model_name = from_src_model.__class__.__name__
     matched_target_model_name = matched_target_model.__class__.__name__
@@ -58,8 +58,11 @@ def add_import_match_detail(matched_target_model, from_src_model):
     src_id_value = getattr(from_src_model, src_id_field)
 
     src_data = []
-    for src_field in IMPORTNOTE_TABLEMAP[src_model_name][matched_target_model_name]:
-        src_data.append(repr(src_field) + ': ' + repr(getattr(from_src_model, src_field)))
+    if from_src_field:
+        src_data.append(repr(from_src_field) + ': ' + repr(getattr(from_src_model, from_src_field)))
+    else:
+        for src_field in IMPORTNOTE_TABLEMAP[src_model_name][matched_target_model_name]:
+            src_data.append(repr(src_field) + ': ' + repr(getattr(from_src_model, src_field)))
 
     source_data = '{' + ', '.join(src_data) + '}'
     note_detail = { 'model': matched_target_model.__class__.__name__, 'model_id': matched_target_model.id, 'type': 'MATCH', 'text': source_data, 'src_model': src_model_name, 'src_model_id_field': src_id_field, 'src_model_id_text': src_id_value}
@@ -581,14 +584,15 @@ def convert_source_carddetails():
         else:
             processed_records += 1
 
-        size, created_size, failed_size, medium, created_medium, failed_medium = determine_product_size_and_medium(src_carddetail.size, src_carddetail.type)
+        size_medium_match_detail = { 'size' : None, 'medium' : None }
+        size, created_size, failed_size, medium, created_medium, failed_medium = determine_product_size_and_medium(src_carddetail.size, src_carddetail.type, size_medium_match_detail)
 
         if failed_size:
             failed_sizes += 1
             failed_products += 1
             continue
         else:
-            add_import_match_detail(size, src_carddetail)
+            add_import_match_detail(size, src_carddetail, size_medium_match_detail['size'])
         if created_size:
             created_sizes += 1
 
@@ -597,7 +601,7 @@ def convert_source_carddetails():
             failed_products += 1
             continue
         else:
-            add_import_match_detail(medium, src_carddetail)
+            add_import_match_detail(medium, src_carddetail, size_medium_match_detail['medium'])
         if created_medium:
             created_mediums += 1
 
@@ -781,7 +785,7 @@ def create_product_catalogs(product):
 
 NO_MEDIUM = {'name': 'No Medium', 'description': 'Imported Without Medium'}
 NO_MATCHED_MEDIUM = {'name': 'Unmatched Medium', 'description': 'Imported With UNMATCHED Medium'}
-def determine_product_size_and_medium(src_size, src_type):
+def determine_product_size_and_medium(src_size, src_type, match_detail):
     NO_SIZE = {'width': None, 'height': None, 'depth': None, 'notes': 'Imported Without Size'}
     NO_MATCHED_SIZE = {'width': None, 'height': None, 'depth': None, 'units': None, 'notes': 'Imported Without a MATCHED Size'}
 
@@ -791,7 +795,8 @@ def determine_product_size_and_medium(src_size, src_type):
     elif not src_size:
         size, created_size, failed_size = get_or_create_model(Size, NO_SIZE)
         if src_type:
-            medium, created_medium, failed_medium = determine_product_medium([src_type])
+            medium, created_medium, failed_medium = determine_product_medium({'type': src_type}, match_detail)
+            match_detail['medium'] = 'type'
         else:
             medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
     else: # at least src_size exists, possible src_type too.
@@ -816,25 +821,26 @@ def determine_product_size_and_medium(src_size, src_type):
 
             size, created_size, failed_size = get_or_create_model(Size, {'width':width, 'height':height, 'units': units})
             if not failed_size:
-                if size.notes:
-                    size.notes += ', ' + str(src_size)
-                else:
-                    size.notes = str(src_size)
+                match_detail['size'] = 'size'
+            #    if size.notes:
+            #        size.notes += ', ' + str(src_size)
+            #    else:
+            #        size.notes = str(src_size)
 
-                if not save_model_obj(size, True):
-                    print 'Error saving Size updating notes from source size'
-                    print 'Size', inspect_model_obj(size)
-                    pause_terminal()
-
+            #    if not save_model_obj(size, True):
+            #        print 'Error saving Size updating notes from source size'
+            #        print 'Size', inspect_model_obj(size)
+            #        pause_terminal()
             # Specifically matched a size from src_size, only process src_type for a Medium
             if src_type:
-                medium, created_medium, failed_medium = determine_product_medium([src_type])
+                medium, created_medium, failed_medium = determine_product_medium({'type': src_type}, match_detail)
+                match_detail['medium'] = 'type'
             else:
                 medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
         else:
             # Did not specifically match a size, attempt to match Medium from both src_size and src_type
             size, created_size, failed_size = get_or_create_model(Size, NO_MATCHED_SIZE)
-            medium, created_medium, failed_medium = determine_product_medium([src_size, src_type])
+            medium, created_medium, failed_medium = determine_product_medium({'size': src_size, 'type': src_type}, match_detail)
 
     return size, created_size, failed_size, medium, created_medium, failed_medium
 
@@ -932,16 +938,16 @@ def sanitize_mediums_dict():
         sys.exit(1)
     
 # word_list contains either both, or one of, a source Card Details "Size" and "Type" field, depending on whether a Size was matched from src_size.
-def determine_product_medium(word_list):
+def determine_product_medium(word_dict, match_detail):
     possible_mediums = []
 
-    for src_field in word_list:
-        if not src_field:
+    for src_field_name, src_field_value in word_dict.iteritems():
+        if not src_field_value:
             if not NO_MEDIUM['name'] in map(lambda x: x['medium']['name'], possible_mediums):
-                possible_mediums.append({'source' : None, 'medium' : NO_MEDIUM})
+                possible_mediums.append({'source_field' : None, 'source_value': None, 'medium' : NO_MEDIUM})
             continue
 
-        clean_field = src_field.strip()
+        clean_field = src_field_value.strip()
 
         for medium_name, match_details in MEDIUMS.iteritems():
             if clean_field in match_details['word'] or matches_regex_list(clean_field, match_details['re']):
@@ -951,10 +957,10 @@ def determine_product_medium(word_list):
                     else:
                         medium_description = medium_name
 
-                    possible_mediums.append({'source': clean_field, 'medium' : {'name' : medium_name, 'description' : medium_description}})
+                    possible_mediums.append({'source_field': src_field_name, 'source_value': clean_field, 'medium' : {'name' : medium_name, 'description' : medium_description}})
 
     if len(possible_mediums) == 0:
-        possible_mediums.append({'source' : None, 'medium' : NO_MATCHED_MEDIUM})
+        possible_mediums.append({'source_field' : None, 'source_value': None, 'medium' : NO_MATCHED_MEDIUM})
 
     medium_details_to_use = reduce(find_greatest_medium, possible_mediums)
 
@@ -975,14 +981,15 @@ def determine_product_medium(word_list):
     medium, created_medium, failed_medium = get_or_create_model(Medium, medium_details_to_use['medium'])
     
     if not failed_medium:
-        if medium.notes:
-            medium.notes += ', ' + repr(medium_details_to_use['source'])
-        else:
-            medium.notes = repr(medium_details_to_use['source'])
+        match_detail['medium'] = medium_details_to_use['source_field']
+    #    if medium.notes:
+    #        medium.notes += ', ' + repr(medium_details_to_use['source'])
+    #    else:
+    #        medium.notes = repr(medium_details_to_use['source'])
 
-        if not save_model_obj(medium, True):
-            print 'Error updating Medium notes from source medium value', inspect_model_obj(medium)
-            pause_terminal()
+    #    if not save_model_obj(medium, True):
+    #        print 'Error updating Medium notes from source medium value', inspect_model_obj(medium)
+    #        pause_terminal()
         
     return medium, created_medium, failed_medium
 
@@ -997,7 +1004,7 @@ def find_greatest_medium(medium_a, medium_b):
             # want to check if medium_b is greater than any mediums in medium_a list, if it is, medium_b should be returned; else medium_b is added to the list and list is returned
             if this_medium_a['medium']['name'] in MEDIUMS[medium_b['medium']['name']]['greater_than'] and medium_b['medium']['name'] in MEDIUMS[this_medium_a['medium']['name']]['lesser_than']:
                 return medium_b
-            elif medium_b['medium']['name'] in CONDITIONAL_GREATER and CONDITIONAL_GREATER[medium_b['medium']['name']]['greater_than'] == this_medium_a['medium']['name'] and CONDITIONAL_GREATER[medium_b['medium']['name']]['by_source'] == medium_b['source']:
+            elif medium_b['medium']['name'] in CONDITIONAL_GREATER and CONDITIONAL_GREATER[medium_b['medium']['name']]['greater_than'] == this_medium_a['medium']['name'] and CONDITIONAL_GREATER[medium_b['medium']['name']]['by_source'] == medium_b['source_value']:
                 return medium_b
 
         medium_a.append(medium_b)
@@ -1007,13 +1014,13 @@ def find_greatest_medium(medium_a, medium_b):
             # medium_a is GREATER THAN medium_b
         if medium_b['medium']['name'] in MEDIUMS[medium_a['medium']['name']]['greater_than'] and medium_a['medium']['name'] in MEDIUMS[medium_b['medium']['name']]['lesser_than']:
             return medium_a
-        elif medium_a['medium']['name'] in CONDITIONAL_GREATER and CONDITIONAL_GREATER[medium_a['medium']['name']]['greater_than'] == medium_b['medium']['name'] and CONDITIONAL_GREATER[medium_a['medium']['name']]['by_source'] == medium_a['source']:
+        elif medium_a['medium']['name'] in CONDITIONAL_GREATER and CONDITIONAL_GREATER[medium_a['medium']['name']]['greater_than'] == medium_b['medium']['name'] and CONDITIONAL_GREATER[medium_a['medium']['name']]['by_source'] == medium_a['source_value']:
             return medium_a
         
             # medium_b is GREATER THAN medium_a
         elif medium_a['medium']['name'] in MEDIUMS[medium_b['medium']['name']]['greater_than'] and medium_b['medium']['name'] in MEDIUMS[medium_a['medium']['name']]['lesser_than']:
             return medium_b
-        elif medium_b['medium']['name'] in CONDITIONAL_GREATER and CONDITIONAL_GREATER[medium_b['medium']['name']]['greater_than'] == medium_a['medium']['name'] and CONDITIONAL_GREATER[medium_b['medium']['name']]['by_source'] == medium_b['source']:
+        elif medium_b['medium']['name'] in CONDITIONAL_GREATER and CONDITIONAL_GREATER[medium_b['medium']['name']]['greater_than'] == medium_a['medium']['name'] and CONDITIONAL_GREATER[medium_b['medium']['name']]['by_source'] == medium_b['source_value']:
             return medium_b
         else:
             return [medium_a, medium_b]
