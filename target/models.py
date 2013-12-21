@@ -96,11 +96,12 @@ class CustomerContact(models.Model):
 class Size(models.Model):
     """ Product Size/Dimensions
     """
-    width = models.DecimalField(max_digits=8, decimal_places=2, null=True)
-    height = models.DecimalField(max_digits=8, decimal_places=2, null=True)
-    depth = models.DecimalField(max_digits=8, decimal_places=2, null=True)
+    width = models.DecimalField(max_digits=10, decimal_places=4, null=True)
+    height = models.DecimalField(max_digits=10, decimal_places=4, null=True)
+    depth = models.DecimalField(max_digits=10, decimal_places=4, null=True)
     units = models.CharField(max_length=80, null=True)
     notes = models.TextField(null=True)
+    sub_notes = models.TextField(null=True)
     #notes = models.CharField(max_length=120, null=True)
 
     def __unicode__(self):

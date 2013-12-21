@@ -789,6 +789,22 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
     NO_SIZE = {'width': None, 'height': None, 'depth': None, 'notes': 'Imported Without Size'}
     NO_MATCHED_SIZE = {'width': None, 'height': None, 'depth': None, 'units': None, 'notes': 'Imported Without a MATCHED Size'}
 
+    # Bad Product Code size matches: add sheets /roll to bad height words...
+    # Product Codes NP-00% are notepads, with 100 sheets per pad; will be matched with a Height of 100
+    # Product Code ST is a roll of 100 stickers
+    # Product Code 24-205 is are soft paws applicators x100
+
+    # fractional sizes need matching: {'size': u'7/16"x1 3/4"'}  {'size': u'7 1/2 x9'}  {'size': u'1"x1 5/8"'}
+    # is this 2.0feet x 2.8feet??? {'size': u'2 0" x  2 8"'}   
+
+    #huh? {'size': u'71/2x9'}  {'size': u'1 x 1 5/"'}  {'size': u'61x51cm/56x61cm'}
+
+    # looses precission
+    #  {'size': u'2.9375" x 1.875"'}  <-- looses precission
+    #  {'size': u'7"x 5.125"'}
+    # {'size': u'5.125" x 7"'}
+    # {'size': u'7"x5.125"'}
+
     if not src_size and not src_type:
         size, created_size, failed_size = get_or_create_model(Size, NO_SIZE)
         medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
@@ -800,26 +816,154 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
         else:
             medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
     else: # at least src_size exists, possible src_type too.
-        width_height_re = re.compile('([\d\.]{1,})[\s"cms]{0,}x[\s]{0,}([\d\.]{1,})')
+        l_w_h_re = re.compile('([\d\.]{1,})["L]{1,}[xX]([\d\.]{1,})["W]{1,}[xX]([\d\.]{1,})[H"]{1,}')
+        width_height_re = re.compile('[\s]{0,}([\d\.]{1,})[\s"\'cms]{0,}[xX][\s]{0,}([\d\.]{1,})[\s"\'Ccms]{0,}(.*)')
+        height_re = re.compile('(\d+)[\'"\scm]{0,}(.*)')
+        skip_height_re = re.compile('.*([Bb][Rr][Oo][Cc][Hh][Uu][Rr][Ee]|pckt|[Pp]age|[Tt]ape|sheet|/roll|tube|pp|Room|/Pack|X|[Dd]iam|Phase|sizes)s?')
         cm_re = re.compile('.*\d\s?[cC]ms?.*')
         mm_re = re.compile('.*\d\s?mm.*')
-        inch_re = re.compile('.*\d\s?".*')
+        inch_re = re.compile('.*\d\s?("|\'\').*')
+        oz_re = re.compile('.*\d\s?[Oo][Zz].*')
+        mg_re = re.compile('.*\d\s?[Mm][Gg].*')
+        gm_re = re.compile('.*\d\s?gm.*')
+        yard_re = re.compile('.*\d\s?[Yy]ards?.*')
 
+        normal_re = re.compile('[Nn]ormal')
+        standard_re = re.compile('[Ss]([TtRrd][Ddt]|tanda[rn]d)[\s\.]{0,}(.*)')
+        sml_re = re.compile('s,m,l')
+        xsmall_re = re.compile('([Xx]|Extra)[\s]{0,}[Ss]mall[\s]{0,}(.*)')
+        small_re = re.compile('[Ss][Mm][Aa][Ll][Ll][\s]{0,}(.*)')
+        medium_re = re.compile('[Mm][Ee][Dd][Ii][Uu][Mm][\s]{0,}(.*)')
+        large_re = re.compile('[Ll][Aa][Rr][Gg][Ee][\s]{0,}(.*)')
+        xlarge_re = re.compile('(Extra|[Xx])[\s\-]?[Ll](arge|rg)[\s]{0,}(.*)')
+        child_re = re.compile('[Cc]hild')
+        adult_re = re.compile('[Aa]dult')
+
+        # sticker sizes/shapes
+        stick_rect_re = re.compile('(rectangle|Oblong)')
+        stick_square_re = re.compile('Square')
+        stick_oval_re = re.compile('Ova[l;]')
+        stick_circle_re = re.compile('[Cc]ircle')
+        stick_roll_re = re.compile('[Ss]?t?i?c?k?e?r?[\s]?[Rr]olls?[\s]{0,}(.*)')
+
+        comp_form_re = re.compile('Comp([\s]|[ui]ter[\s])[Ff]orm')
+
+        depth = None
+        height = None
+        width = None
+        notes = None
+        sub_notes = None
+
+        l_w_h_match = l_w_h_re.match(src_size)
         width_height_match = width_height_re.match(src_size)
-        if width_height_match:
+        height_match = height_re.match(src_size)
+        bad_height_match = skip_height_re.match(src_size)
+        
+        normal_match = normal_re.match(src_size)
+        standard_match = standard_re.match(src_size)
+        sml_match = sml_re.match(src_size)
+        xsmall_match = xsmall_re.match(src_size)
+        small_match = small_re.match(src_size)
+        medium_match = medium_re.match(src_size)
+        large_match = large_re.match(src_size)
+        xlarge_match = xlarge_re.match(src_size)
+        child_match = child_re.match(src_size)
+        adult_match = adult_re.match(src_size)
+
+        rect_match = stick_rect_re.match(src_size)
+        square_match = stick_square_re.match(src_size)
+        oval_match = stick_oval_re.match(src_size)
+        circle_match = stick_circle_re.match(src_size)
+        roll_match = stick_roll_re.match(src_size)
+
+        comp_match = comp_form_re.match(src_size)
+
+        # {'size': u'4-Up   11" x 8.5"'}
+        if src_size == u'4-Up   11" x 8.5"':
+            width = '11'
+            height = '8.5'
+            notes = '4-Up'
+        # {'size': u'3\xbd" x1"'}
+        elif src_size == '3\xbd" x1"':
+            width = '3'
+            height = '1'
+        # {'size': u'9" x 13" 23 x 33cm'}   <--- matches to CMs but picks up the inch numbers...
+        elif src_size == u'9" x 13" 23 x 33cm':
+            width = '23'
+            height = '33'
+        elif normal_match:
+            notes = 'Normal'
+        elif standard_match:
+            notes = 'Standard'
+            sub_notes = standard_match.group(2)
+        elif sml_match:
+            notes = 'Small, Medium and Large'
+        elif xsmall_match:
+            notes = 'Extra Small'
+            sub_notes = xsmall_match.group(2)
+        elif small_match:
+            notes = 'Small'
+            sub_notes = small_match.group(1)
+        elif medium_match:
+            notes = 'Medium'
+            sub_notes = medium_match.group(1)
+        elif large_match:
+            notes = 'Large'
+            sub_notes = large_match.group(1)
+        elif xlarge_match:
+            notes = 'Extra Large'
+            sub_notes = xlarge_match.group(3)
+        elif child_match:
+            notes = 'Child'
+        elif adult_match:
+            notes = 'Adult'
+        elif rect_match:
+            notes = 'Rectangle'
+        elif square_match:
+            notes = 'Square'
+        elif oval_match:
+            notes = 'Oval'
+        elif circle_match:
+            notes = 'Circle'
+        elif roll_match:
+            notes = 'Roll'
+            sub_notes = roll_match.group(1)
+        elif comp_match:
+            notes = 'Computer Form'
+        elif l_w_h_match:
+            depth = l_w_h_match.group(1)
+            width = l_w_h_match.group(2)
+            height = l_w_h_match.group(3)
+        elif width_height_match:
             width = width_height_match.group(1)
             height = width_height_match.group(2)
+            notes = width_height_match.group(3)
+        elif height_match and not bad_height_match and height_match.group(1) != str('0'):
+            height = height_match.group(1)
+            notes = height_match.group(2)
 
+        if height:
             if cm_re.match(src_size):
                 units = 'cm'
             elif mm_re.match(src_size):
                 units = 'mm'
             elif inch_re.match(src_size):
                 units = 'inch'
+            elif oz_re.match(src_size):
+                units = 'ounce'
+            elif mg_re.match(src_size):
+                units = 'mg'
+            elif gm_re.match(src_size):
+                units = 'gram'
+            elif yard_re.match(src_size):
+                units = 'yard'
             else:
                 units = 'unknown'
 
-            size, created_size, failed_size = get_or_create_model(Size, {'width':width, 'height':height, 'units': units})
+            if re.compile('.*Round').match(src_size):
+                notes = 'Round'
+
+            size, created_size, failed_size = get_or_create_model(Size, {'depth': depth, 'width':width, 'height':height, 'units': units, 'notes': notes})
             if not failed_size:
                 match_detail['size'] = 'size'
             #    if size.notes:
@@ -832,6 +976,16 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
             #        print 'Size', inspect_model_obj(size)
             #        pause_terminal()
             # Specifically matched a size from src_size, only process src_type for a Medium
+            if src_type:
+                medium, created_medium, failed_medium = determine_product_medium({'type': src_type}, match_detail)
+                match_detail['medium'] = 'type'
+            else:
+                medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
+        elif notes: # matches 'Standard', 'Small', etc..
+            size, created_size, failed_size = get_or_create_model(Size, {'notes': notes, 'sub_notes': sub_notes})
+            if not failed_size:
+                match_detail['size'] = 'size'
+            
             if src_type:
                 medium, created_medium, failed_medium = determine_product_medium({'type': src_type}, match_detail)
                 match_detail['medium'] = 'type'
