@@ -46,6 +46,7 @@ class ImportNote(models.Model):
     model_id = models.PositiveIntegerField()
     type = models.CharField(max_length=50, default=None)
     text = models.TextField()
+    note = models.TextField(null=True, blank=True)
     src_model = models.CharField(max_length=50, null=True, blank=True)
     src_model_id_field = models.CharField(max_length=50, null=True, blank=True)
     src_model_id_text = models.CharField(max_length=50, null=True, blank=True)

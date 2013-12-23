@@ -29,16 +29,12 @@ IMPORTNOTE_TABLEMAP = {
     'CardDetails' : {
         'pk_field' : 'product_code',
         'Medium' : ['size', 'type'],
-        'Size' : ['size']
+        'Size' : ['size'],
+        'PriceLevel' : []
      }
 }
 
-#def get_location_and_data_of_source_row(matched_target_model, src_model):
-
-#    return source_row, source_data
-
-def add_import_match_detail(matched_target_model, from_src_model, from_src_field=None):
-    #row, data = get_location_and_data_of_source_row(matched_target_model, from_src_model)
+def add_import_match_detail(matched_target_model, from_src_model, from_src_field=None, extra_note=None):
     src_model_name = from_src_model.__class__.__name__
     matched_target_model_name = matched_target_model.__class__.__name__
     if not src_model_name in IMPORTNOTE_TABLEMAP or not matched_target_model_name in IMPORTNOTE_TABLEMAP[src_model_name]:
@@ -59,13 +55,17 @@ def add_import_match_detail(matched_target_model, from_src_model, from_src_field
 
     src_data = []
     if from_src_field:
-        src_data.append(repr(from_src_field) + ': ' + repr(getattr(from_src_model, from_src_field)))
+        if hasattr(from_src_field, '__iter__'):
+            for src_field in from_src_field:
+                src_data.append(repr(src_field) + ': ' + repr(getattr(from_src_model, src_field)))
+        else:
+            src_data.append(repr(from_src_field) + ': ' + repr(getattr(from_src_model, from_src_field)))
     else:
         for src_field in IMPORTNOTE_TABLEMAP[src_model_name][matched_target_model_name]:
             src_data.append(repr(src_field) + ': ' + repr(getattr(from_src_model, src_field)))
 
     source_data = '{' + ', '.join(src_data) + '}'
-    note_detail = { 'model': matched_target_model.__class__.__name__, 'model_id': matched_target_model.id, 'type': 'MATCH', 'text': source_data, 'src_model': src_model_name, 'src_model_id_field': src_id_field, 'src_model_id_text': src_id_value}
+    note_detail = { 'model': matched_target_model.__class__.__name__, 'model_id': matched_target_model.id, 'type': 'MATCH', 'text': source_data, 'src_model': src_model_name, 'src_model_id_field': src_id_field, 'src_model_id_text': src_id_value, 'note': extra_note}
     import_note = ImportNote(**note_detail)
     import_note.save(using=TARGET_DB)
 
@@ -789,21 +789,10 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
     NO_SIZE = {'width': None, 'height': None, 'depth': None, 'notes': 'Imported Without Size'}
     NO_MATCHED_SIZE = {'width': None, 'height': None, 'depth': None, 'units': None, 'notes': 'Imported Without a MATCHED Size'}
 
-    # Bad Product Code size matches: add sheets /roll to bad height words...
-    # Product Codes NP-00% are notepads, with 100 sheets per pad; will be matched with a Height of 100
-    # Product Code ST is a roll of 100 stickers
-    # Product Code 24-205 is are soft paws applicators x100
-
     # fractional sizes need matching: {'size': u'7/16"x1 3/4"'}  {'size': u'7 1/2 x9'}  {'size': u'1"x1 5/8"'}
     # is this 2.0feet x 2.8feet??? {'size': u'2 0" x  2 8"'}   
 
     #huh? {'size': u'71/2x9'}  {'size': u'1 x 1 5/"'}  {'size': u'61x51cm/56x61cm'}
-
-    # looses precission
-    #  {'size': u'2.9375" x 1.875"'}  <-- looses precission
-    #  {'size': u'7"x 5.125"'}
-    # {'size': u'5.125" x 7"'}
-    # {'size': u'7"x5.125"'}
 
     if not src_size and not src_type:
         size, created_size, failed_size = get_or_create_model(Size, NO_SIZE)
@@ -816,7 +805,7 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
         else:
             medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
     else: # at least src_size exists, possible src_type too.
-        l_w_h_re = re.compile('([\d\.]{1,})["L]{1,}[xX]([\d\.]{1,})["W]{1,}[xX]([\d\.]{1,})[H"]{1,}')
+        l_w_h_re = re.compile('([\d\.]{1,})["L\s]{1,}[xX][\s]?([\d\.]{1,})["W\s]{1,}[xX][\s]?([\d\.]{1,})[H"c]{1,}')
         width_height_re = re.compile('[\s]{0,}([\d\.]{1,})[\s"\'cms]{0,}[xX][\s]{0,}([\d\.]{1,})[\s"\'Ccms]{0,}(.*)')
         height_re = re.compile('(\d+)[\'"\scm]{0,}(.*)')
         skip_height_re = re.compile('.*([Bb][Rr][Oo][Cc][Hh][Uu][Rr][Ee]|pckt|[Pp]age|[Tt]ape|sheet|/roll|tube|pp|Room|/Pack|X|[Dd]iam|Phase|sizes)s?')
@@ -1210,6 +1199,7 @@ def create_product_price_levels(src_carddetail, product, price_level_group):
     for price_field, per_field in BLOCK_PRICELEVEL_MAP.iteritems():
         price_value = getattr(src_carddetail, price_field)
         per_value = getattr(src_carddetail, per_field)
+        notes = None
 
         if price_value > 0:
             if per_value:
@@ -1238,22 +1228,24 @@ def create_product_price_levels(src_carddetail, product, price_level_group):
                     min_amt = max_amt = int_match.group(0)
                 else:
                     min_amt = max_amt = 0 # really got NFI whats going on here, just set to 0 so it imports.  PriceLevel.notes will contain the textual per_value
+                    notes = 'UNDETERMINED AMOUNTS'
             else:
                 # no textual 'per' value, assume the 'per' is the number_X_price ; a block of X items.
                 number_block = price_number_re.match(price_field)
                 min_amt = max_amt = number_block.group(1)
-                per_value = 'num blk match'
+                per_value = 'number block match (' + str(min_amt) + ')'
 
             if str(min_amt) == '1' or str(min_amt) == '0':
                 is_block_only = False
             else:
                 is_block_only = True
 
-            price_level = PriceLevel(min_amount=min_amt, max_amount=max_amt, cost_per_block=price_value, cost_per_item=price_value, block_only=is_block_only, notes=per_value)
+            price_level = PriceLevel(min_amount=min_amt, max_amount=max_amt, cost_per_block=price_value, cost_per_item=price_value, block_only=is_block_only, notes=notes)
+            found_existing_price_level = False
             # if we have a PriceLevelGroup, its possible this PriceLevel already exists.  If it exists, we just add this product to the pricelevel.
             if price_level_group:
                 print 'We Have a Price Level Group!', inspect_model_obj(price_level_group)
-                print 'price_level_group.price_levels', inspect_model_collection(price_level_group.price_levels.all())
+                #print 'price_level_group.price_levels', inspect_model_collection(price_level_group.price_levels.all())
                 price_level.price_level_group = price_level_group
                 # go through price_levels to see if this one already exists
                 for existing_price_level in price_level_group.price_levels.all():
@@ -1264,27 +1256,34 @@ def create_product_price_levels(src_carddetail, product, price_level_group):
                         if not save_model_obj(existing_price_level, True):
                             print 'Error saving existing price level adding the Product', inspect_model_obj(product)
                             pause_terminal()
-
-                        if existing_price_level.notes:
-                            existing_price_level.notes += ', ' + str(per_value)
                         else:
-                            existing_price_level.notes = str(per_value)
-                        if not save_model_obj(existing_price_level, True):
-                            print 'Error saving existing price level adding the per_value to the PriceLevel.notes field'
-                            pause_terminal()
-                     
-                        return created, failed
+                            add_import_match_detail(existing_price_level, src_carddetail, [price_field, per_field], per_value)
 
-            if save_model_obj(price_level):
-                created += 1
-                price_level.products.add(product)
-                if not save_model_obj(price_level, True):
-                    print 'Error re-saving new price level adding the Product!'
-                    print 'PriceLevel', inspect_model_obj(price_level)
-                    print 'Product', inspect_model_obj(product)
-                    pause_terminal()
-            else:
-                failed += 1
+                        found_existing_price_level = True
+                        break
+                        #return created, failed
+                        #if existing_price_level.notes:
+                        #    existing_price_level.notes += ', ' + str(per_value)
+                        #else:
+                        #    existing_price_level.notes = str(per_value)
+                        #if not save_model_obj(existing_price_level, True):
+                        #    print 'Error saving existing price level adding the per_value to the PriceLevel.notes field'
+                        #    pause_terminal()
+                     
+
+            if not found_existing_price_level:
+                if save_model_obj(price_level):
+                    created += 1
+                    price_level.products.add(product)
+                    if not save_model_obj(price_level, True):
+                        print 'Error re-saving new price level adding the Product!'
+                        print 'PriceLevel', inspect_model_obj(price_level)
+                        print 'Product', inspect_model_obj(product)
+                        pause_terminal()
+                    else:
+                        add_import_match_detail(price_level, src_carddetail, [price_field, per_field], per_value)
+                else:
+                    failed += 1
 
     return created, failed
 
