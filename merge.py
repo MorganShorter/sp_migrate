@@ -16,59 +16,6 @@ TARGET_DB='target_db'
 GST_PERCENTAGE = 10.0
 GST_STARTED_DATE = datetime.strptime('1/07/00', "%d/%m/%y")
 
-from target.models import ImportNote
-
-"""   'SourceModel' : {
-        'pk_field' : 'identifying_column_for_this_insane_db_table',   hence 'pk_field' is not really primary key..
-        'TargetModel' : ['SourceModel.src_field', 'SourceModel.src_field_2', ...],
-        'TargetModel2' : ['SourceModel.src_field', ... ],
-        ...
-      },
-"""
-IMPORTNOTE_TABLEMAP = {
-    'CardDetails' : {
-        'pk_field' : 'product_code',
-        'Medium' : ['size', 'type'],
-        'Size' : ['size'],
-        'PriceLevel' : []
-     }
-}
-
-def add_import_match_detail(matched_target_model, from_src_model, from_src_field=None, extra_note=None):
-    src_model_name = from_src_model.__class__.__name__
-    matched_target_model_name = matched_target_model.__class__.__name__
-    if not src_model_name in IMPORTNOTE_TABLEMAP or not matched_target_model_name in IMPORTNOTE_TABLEMAP[src_model_name]:
-        if not src_model_name in IMPORTNOTE_TABLEMAP:
-            print 'ERROR!! You asked me for the location of a source row from a source model you neglected to give me the details to, pretty poor form.'
-            print 'Cant find', model_name, 'in IMPORTNOTE_TABLEMAP'
-        else:
-            print 'ERROR!! You asked me for the source data from', src_model_name, 'which matched the target model', matched_target_model_name
-            print 'But', matched_target_model_name, 'is not in IMPORTNOTE_TABLEMAP[' + src_model_name + ']; Fix it!'
-
-        print 'Source', src_model_name + ':', inspect_model_obj(from_src_model)
-        print 'Matched Target', matched_target_model_name + ':', inspect_model_obj(matched_target_model)
-        print 'IMPORTNOTE_TABLEMAP is broken, bailing out'
-        sys.exit(1)
-
-    src_id_field = IMPORTNOTE_TABLEMAP[src_model_name]['pk_field']
-    src_id_value = getattr(from_src_model, src_id_field)
-
-    src_data = []
-    if from_src_field:
-        if hasattr(from_src_field, '__iter__'):
-            for src_field in from_src_field:
-                src_data.append(repr(src_field) + ': ' + repr(getattr(from_src_model, src_field)))
-        else:
-            src_data.append(repr(from_src_field) + ': ' + repr(getattr(from_src_model, from_src_field)))
-    else:
-        for src_field in IMPORTNOTE_TABLEMAP[src_model_name][matched_target_model_name]:
-            src_data.append(repr(src_field) + ': ' + repr(getattr(from_src_model, src_field)))
-
-    source_data = '{' + ', '.join(src_data) + '}'
-    note_detail = { 'model': matched_target_model.__class__.__name__, 'model_id': matched_target_model.id, 'type': 'MATCH', 'text': source_data, 'src_model': src_model_name, 'src_model_id_field': src_id_field, 'src_model_id_text': src_id_value, 'note': extra_note}
-    import_note = ImportNote(**note_detail)
-    import_note.save(using=TARGET_DB)
-
 # source table Company contains our Customer's and CustomerContact's
 from source.models import SourceCompany # renamed to SourceCompany to not collide with our target Company
 from target.models import Customer, CustomerContact
@@ -200,6 +147,59 @@ BORDERS_DETAIL_TABLEMAP = { 'quantity' : 'back_order_qty',
                             'discount_percentage' : 'disc_p',
                             'discount_price' : 'disc_d' }
 
+
+from target.models import ImportNote
+
+"""   'SourceModel' : {
+        'pk_field' : 'identifying_column_for_this_insane_db_table',   hence 'pk_field' is not really primary key..
+        'TargetModel' : ['SourceModel.src_field', 'SourceModel.src_field_2', ...],
+        'TargetModel2' : ['SourceModel.src_field', ... ],
+        ...
+      },
+"""
+IMPORTNOTE_TABLEMAP = {
+    'CardDetails' : {
+        'pk_field' : 'product_code',
+        'Medium' : ['size', 'type'],
+        'Size' : ['size'],
+        'PriceLevel' : []
+     }
+}
+
+def add_import_match_detail(matched_target_model, from_src_model, from_src_field=None, extra_note=None):
+    src_model_name = from_src_model.__class__.__name__
+    matched_target_model_name = matched_target_model.__class__.__name__
+    if not src_model_name in IMPORTNOTE_TABLEMAP or not matched_target_model_name in IMPORTNOTE_TABLEMAP[src_model_name]:
+        if not src_model_name in IMPORTNOTE_TABLEMAP:
+            print 'ERROR!! You asked me for the location of a source row from a source model you neglected to give me the details to, pretty poor form.'
+            print 'Cant find', model_name, 'in IMPORTNOTE_TABLEMAP'
+        else:
+            print 'ERROR!! You asked me for the source data from', src_model_name, 'which matched the target model', matched_target_model_name
+            print 'But', matched_target_model_name, 'is not in IMPORTNOTE_TABLEMAP[' + src_model_name + ']; Fix it!'
+
+        print 'Source', src_model_name + ':', inspect_model_obj(from_src_model)
+        print 'Matched Target', matched_target_model_name + ':', inspect_model_obj(matched_target_model)
+        print 'IMPORTNOTE_TABLEMAP is broken, bailing out'
+        sys.exit(1)
+
+    src_id_field = IMPORTNOTE_TABLEMAP[src_model_name]['pk_field']
+    src_id_value = getattr(from_src_model, src_id_field)
+
+    src_data = []
+    if from_src_field:
+        if hasattr(from_src_field, '__iter__'):
+            for src_field in from_src_field:
+                src_data.append(repr(src_field) + ': ' + repr(getattr(from_src_model, src_field)))
+        else:
+            src_data.append(repr(from_src_field) + ': ' + repr(getattr(from_src_model, from_src_field)))
+    else:
+        for src_field in IMPORTNOTE_TABLEMAP[src_model_name][matched_target_model_name]:
+            src_data.append(repr(src_field) + ': ' + repr(getattr(from_src_model, src_field)))
+
+    source_data = '{' + ', '.join(src_data) + '}'
+    note_detail = { 'model': matched_target_model.__class__.__name__, 'model_id': matched_target_model.id, 'type': 'MATCH', 'text': source_data, 'src_model': src_model_name, 'src_model_id_field': src_id_field, 'src_model_id_text': src_id_value, 'note': extra_note}
+    import_note = ImportNote(**note_detail)
+    import_note.save(using=TARGET_DB)
 
 #### Functions to convert source tables Company and Membadd into target tables Customer and CustomerContact
 def convert_source_company_and_membadd():
@@ -794,17 +794,12 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
 
     #huh? {'size': u'71/2x9'}  {'size': u'1 x 1 5/"'}  {'size': u'61x51cm/56x61cm'}
 
-    if not src_size and not src_type:
+    # process both size and type for a medium.
+    medium, created_medium, failed_medium = determine_product_medium({'type': src_type, 'size': src_size}, match_detail)
+
+    if not src_size:
         size, created_size, failed_size = get_or_create_model(Size, NO_SIZE)
-        medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
-    elif not src_size:
-        size, created_size, failed_size = get_or_create_model(Size, NO_SIZE)
-        if src_type:
-            medium, created_medium, failed_medium = determine_product_medium({'type': src_type}, match_detail)
-            match_detail['medium'] = 'type'
-        else:
-            medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
-    else: # at least src_size exists, possible src_type too.
+    else:
         l_w_h_re = re.compile('([\d\.]{1,})["L\s]{1,}[xX][\s]?([\d\.]{1,})["W\s]{1,}[xX][\s]?([\d\.]{1,})[H"c]{1,}')
         width_height_re = re.compile('[\s]{0,}([\d\.]{1,})[\s"\'cms]{0,}[xX][\s]{0,}([\d\.]{1,})[\s"\'Ccms]{0,}(.*)')
         height_re = re.compile('(\d+)[\'"\scm]{0,}(.*)')
@@ -955,35 +950,14 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
             size, created_size, failed_size = get_or_create_model(Size, {'depth': depth, 'width':width, 'height':height, 'units': units, 'notes': notes})
             if not failed_size:
                 match_detail['size'] = 'size'
-            #    if size.notes:
-            #        size.notes += ', ' + str(src_size)
-            #    else:
-            #        size.notes = str(src_size)
 
-            #    if not save_model_obj(size, True):
-            #        print 'Error saving Size updating notes from source size'
-            #        print 'Size', inspect_model_obj(size)
-            #        pause_terminal()
-            # Specifically matched a size from src_size, only process src_type for a Medium
-            if src_type:
-                medium, created_medium, failed_medium = determine_product_medium({'type': src_type}, match_detail)
-                match_detail['medium'] = 'type'
-            else:
-                medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
         elif notes: # matches 'Standard', 'Small', etc..
             size, created_size, failed_size = get_or_create_model(Size, {'notes': notes, 'sub_notes': sub_notes})
             if not failed_size:
                 match_detail['size'] = 'size'
-            
-            if src_type:
-                medium, created_medium, failed_medium = determine_product_medium({'type': src_type}, match_detail)
-                match_detail['medium'] = 'type'
-            else:
-                medium, created_medium, failed_medium = get_or_create_model(Medium, NO_MEDIUM)
         else:
-            # Did not specifically match a size, attempt to match Medium from both src_size and src_type
+            # Did not specifically match a size
             size, created_size, failed_size = get_or_create_model(Size, NO_MATCHED_SIZE)
-            medium, created_medium, failed_medium = determine_product_medium({'size': src_size, 'type': src_type}, match_detail)
 
     return size, created_size, failed_size, medium, created_medium, failed_medium
 
@@ -998,41 +972,42 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
 MEDIUMS = {
     'Paper' : { 'word' : ['A4', 'A5', 'A3', '1/3 A4 size'], 're' : ['(\d+)[\s]{0,}[pP]ages?'], 'greater_than' : ['Stationary'], 'lesser_than' : ['Brochure', 'Pamphlet', 'Book'] },
     'Sheet' : { 'word' : [], 're' : ['[Ss]heets?[\s]{1,}[Pp]?a?p?e?r?'], 'greater_than' : [], 'lesser_than' : [] },
-    'Brochure' : { 'word' : [], 're' : ['[Bb][RrOo][OoRr][Cc][Hh][Uu][Rr][Ee]'], 'greater_than' : ['Paper'], 'lesser_than' : [] },
-    'Folding Card' : { 'word' : [], 're' : ['([Ff]or?lding|[Mm]ultifold)'], 'greater_than' : ['Card'], 'lesser_than' : [] },
-    'Postcard' : { 'word' : [], 're' : ['(P/c|Pcard|[Pp][Oo]st[\s]?[Cc]ard|Potsc)'], 'greater_than' : ['Computer Form'], 'lesser_than' : [] },
+    'Brochure' : { 'word' : [], 're' : ['.*[Bb][RrOo][OoRr][Cc][Hh][Uu][Rr][Ee]'], 'greater_than' : ['Paper'], 'lesser_than' : [] },
+    'Folding Card' : { 'word' : ['Flip-Top Cards', 'Fold Card', 'Xmas Folding Card', 'Note-Size Folding', 'Die-Cut Folding'], 're' : ['.*([Ff][Oo]r?[Ll][Dd][Ii][Nn][Gg]|[Mm]ultifold)'], 'greater_than' : ['Card'], 'lesser_than' : [] },
+    'Postcard' : { 'word' : ['Standard Postcards', 'Xmas Postcard'], 're' : ['(P/c|[Pp]card|[Pp][Oo]st[\s]?[Cc]ard|Potsc)', 'Koren\s[Pp]ostcards?'], 'greater_than' : ['Computer Form'], 'lesser_than' : [] },
+    'Laser Card' : { 'word' : ['Four Up Post Card'], 're' : ['.*[Ll]a[sz]er\s(format|[Cc]ard)'], 'greater_than' : [], 'lesser_than' : [] },
     'Tape' : { 'word' : [], 're' : ['(\d+)[\s]{0,}[Tt]apes?'], 'greater_than' : [], 'lesser_than' : [] },
     'Tube' : { 'word' : [], 're' : ['(\d+)[\s]{0.}[Tt]ubes?'], 'greater_than' : [], 'lesser_than' : [] },
     'Jar' : {  'word' : [], 're' : ['[Jj]ars?'], 'greater_than' : [], 'lesser_than' : [] },
-    'Magnet' : { 'word' : [], 're' : ['[Mm][Aa][Gg][Nn][Ee][Tt]'], 'greater_than' : [], 'lesser_than' : [] },
-    'Bag' : { 'word' : [],  're' : ['([Tt]ote|[Bb]ag)'], 'greater_than' : [], 'lesser_than' : [] },
+    'Magnet' : { 'word' : [], 're' : ['.*[Mm][Aa][Gg][Nn][Ee][Tt]'], 'greater_than' : [], 'lesser_than' : [] },
+    'Bag' : { 'word' : [],  're' : ['.*([Tt]ote|[Bb]ag)'], 'greater_than' : [], 'lesser_than' : [] },
     'Spidertech' : { 'word' : [], 're' : ['Spidertech'], 'greater_than' : [], 'lesser_than' : [], 'use_value_for_description' : True },
-    'Badge' : { 'word' : [], 're' : ['[Bb][Aa][Dd][Gg][Ee]'], 'greater_than' : [], 'lesser_than' : [] },
+    'Badge' : { 'word' : [], 're' : ['.*[Bb][Aa][Dd][Gg][Ee]'], 'greater_than' : [], 'lesser_than' : [] },
     'Card' : { 'word' : ['Cards', 'Crads', 'Card', 'card'], 're' : [], 'greater_than' : [], 'lesser_than' : ['Folding Card'] },
-    'Kit' : { 'word' : ['Kit', 'kit'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
+    'Kit' : { 'word' : ['Kit', 'kit'], 're' : ['Take[\s]{1,}Home[\s]{1,}Kit'], 'greater_than' : [], 'lesser_than' : [] },
     'Stationary' : {
         'word' : ['Pen', 'Pencil', 'Pad', 'Scissors-type trimmer', 'Stationery', 'Eraser', 'Pin/Tacs', 'Bone Pen', 'Neck Stick Pen' ],
         're' : [], 'greater_than' : [], 'lesser_than' : ['Paper']
     },
-    'Sticker' : { 'word' : ['Sticker', 'Stickers', 'Sticker roll', 'Boxed Stickes'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
+    'Sticker' : { 'word' : ['Sticker', 'Stickers', 'Sticker roll', 'Boxed Stickes', 'sticker', 'Roll of stickers', 'Personalised Stickers'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
     'Plaque' : { 'word' : ['wall plaque', 'Wall Plaque'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
-    'Computer Form' : { 'word' : ['Computer Form', 'Comp form', 'Compiter Form'], 're' : [], 'greater_than' : [], 'lesser_than' : ['Postcard'] },
+    'Computer Form' : { 'word' : ['Computer Form', 'Comp form', 'Compiter Form', 'comp form'], 're' : [], 'greater_than' : [], 'lesser_than' : ['Postcard'] },
     'Clipboard' : { 'word' : ['Clipboard'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
-    'Book' : { 'word' : [], 're' : ['[Bb]ook'], 'greater_than' : ['Paper'], 'lesser_than' : ['Multimedia'] },
-    'Clinic Supplies' : { 'word' : ['Clinic Supplies'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
+    'Book' : { 'word' : [], 're' : ['[Bb]ooks?$'], 'greater_than' : ['Paper'], 'lesser_than' : ['Multimedia'] },
+    'Clinic Supplies' : { 'word' : ['Clinic Supplies'], 're' : ['[Ww]all[\s]+[Cc]hart'], 'greater_than' : [], 'lesser_than' : [] },
     'Miscellaneous' : { 'word' : ['Miscellaneous'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
-    'Patient Education/Instruction' : { 'word' : [ 'Patient Education', 'Patient Instruction' ], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
+    'Patient Education/Instruction' : { 'word' : [ 'Patient Education', 'Patient Instruction', 'Information Pads' ], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
     'Multimedia' : {
-        'word' : ['CD', 'Video', 'DVD', 'X-Ray', 'Compact Disc', 'Video Tapes', 'Cassette', 'Book& CD', 'Brochure Disc', '6 Audio Tapes', 'Neck & Arm Pain DVD', '21st Century Smile DVD', 'CD of AMCT book', 'Virtual Tour DVD'],
+        'word' : ['CD', 'Video', 'DVD', 'X-Ray', 'Audio Tapes Koren', 'Compact Disc', 'Video Tapes', 'Cassette', 'Book& CD', 'Brochure Disc', '6 Audio Tapes', 'Neck & Arm Pain DVD', '21st Century Smile DVD', 'CD of AMCT book', 'Virtual Tour DVD', 'Ted Koren Lecture Notes & CD', 'CD and Vaccination Notes', 'Smile after smile video', 'Waiting Room DVD-Pal Version', 'Patient Care CD', 'xray film', 'Basic Scan Protocol CD', 'Basic Scan Protocol DVD', 'Spinal Research Book/CD', 'Childhood Vaccination Book/CD', 'X-Ray film', 'X-ray Charts'],
         're' : [], 'greater_than' : ['Book'], 'lesser_than' : []
     },
     'Pamphlet' : { 'word' : [], 're' : ['[Pp]{1}amphlet'], 'greater_than' : ['Paper'], 'lesser_than' : [] },
     'Flyer' : { 'word' : [], 're' : ['[Ff]{1}lyer'], 'greater_than' : [], 'lesser_than' : [] },
-    'Poster' : { 'word' : [], 're' : ['[Pp]{1}oster'], 'greater_than' : [], 'lesser_than' : [] },
-    'Calendar' : { 'word' : [], 're' : ['[Cc]{1}alendar'], 'greater_than' : [], 'lesser_than' : [] },
+    'Poster' : { 'word' : [], 're' : ['.*[Pp]{1}oster'], 'greater_than' : [], 'lesser_than' : [] },
+    'Calendar' : { 'word' : [], 're' : ['.*[Cc]{1}[Aa][Ll][Ee][Nn][Dd][Aa][Rr].*'], 'greater_than' : [], 'lesser_than' : [] },
     'Clothing/Apparel' : {
-        'word' : [],
-        're' : ['([Cc]{1}lothing|Scr?ub\s{1}Top|[Tt]{1}-?[Ss]{1}hirt|[Pp]{1}ants|[Nn]{1}eck[\s]+[Jj]{1}acket|V[\s\-]{1}Neck|CAA.*Gown|Lab Coat|Cardigan)'], 'greater_than' : [], 'lesser_than' : [] 
+        'word' : ['Polo Shirt', 'Labcoat', 'scrub jacket', 'fitted scrub pant', 'Smart Bib', 'Adult Shoes', 'PVC Wallet-Personal', 'Shoehorn/Backscratcher', 'Gloves'],
+        're' : ['([Cc]{1}lothing|Scr?ub\s{1}Top|[Tt]{1}-?[Ss]{1}hirt|.*[Pp]{1}ants|[Nn]{1}eck[\s]+|Bibs.*|.*Bibs|.*[Jj]acket|.*V?\s?Top.*|V[\s\-]{1}Neck|CAA.*Gown|Lab Coat|Cardigan|Gowns[\s]{1,}.*)'], 'greater_than' : [], 'lesser_than' : [] 
     } }
 def sanitize_mediums_dict():
     # Add NO_MEDIUM and NO_MATCHED_MEDIUM to MEDIUMS dict
@@ -1125,21 +1100,17 @@ def determine_product_medium(word_dict, match_detail):
     
     if not failed_medium:
         match_detail['medium'] = medium_details_to_use['source_field']
-    #    if medium.notes:
-    #        medium.notes += ', ' + repr(medium_details_to_use['source'])
-    #    else:
-    #        medium.notes = repr(medium_details_to_use['source'])
-
-    #    if not save_model_obj(medium, True):
-    #        print 'Error updating Medium notes from source medium value', inspect_model_obj(medium)
-    #        pause_terminal()
         
     return medium, created_medium, failed_medium
 
 def find_greatest_medium(medium_a, medium_b):
     # TODO Move Conditional Greater into MEDIUMS dict
     #   { 'Medium Name' : { 'greater_than' : 'Other Medium Name', 'by_source' : 'source that matched Medium Name' } }
-    CONDITIONAL_GREATER = { 'Multimedia' : { 'greater_than' : 'Tape', 'by_source' : 'Cassette' } }
+    CONDITIONAL_GREATER = { 
+        'Multimedia' : { 'greater_than' : 'Tape', 'by_source' : 'Cassette' },
+        'Paper' : { 'greater_than' : 'Clothing/Apparel', 'by_source': 'A4' },
+        'Folding Card' : { 'greater_than' : 'Clothing/Apparel', 'by_source' : 'Flip-Top Cards'} 
+    }
 
     # medium_a can possibly contain multiple Mediums as not all Mediums have been weighted for GREATNESS
     if medium_a.__class__.__name__ == 'list':
