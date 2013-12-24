@@ -970,11 +970,11 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
 #                                                                    # Any Medium Name listed under the 'greater_than' list, means upon two di BAD LUCK FIGURE IT OUT YOURSELF
 #                      'lesser_than' : [ 'Medium Name 1', ... ]      # these are the lesser than mediums.... blah blah read above BAD LUCK... WANGOD!!!
 MEDIUMS = {
-    'Paper' : { 'word' : ['A4', 'A5', 'A3', '1/3 A4 size'], 're' : ['(\d+)[\s]{0,}[pP]ages?'], 'greater_than' : ['Stationary'], 'lesser_than' : ['Brochure', 'Pamphlet', 'Book'] },
+    'Paper' : { 'word' : ['A4', 'A5', 'A3', '1/3 A4 size'], 're' : ['(\d+)[\s]{0,}[pP]ages?'], 'greater_than' : [], 'lesser_than' : [] },
     'Sheet' : { 'word' : [], 're' : ['[Ss]heets?[\s]{1,}[Pp]?a?p?e?r?'], 'greater_than' : [], 'lesser_than' : [] },
-    'Brochure' : { 'word' : [], 're' : ['.*[Bb][RrOo][OoRr][Cc][Hh][Uu][Rr][Ee]'], 'greater_than' : ['Paper'], 'lesser_than' : [] },
-    'Folding Card' : { 'word' : ['Flip-Top Cards', 'Fold Card', 'Xmas Folding Card', 'Note-Size Folding', 'Die-Cut Folding'], 're' : ['.*([Ff][Oo]r?[Ll][Dd][Ii][Nn][Gg]|[Mm]ultifold)'], 'greater_than' : ['Card'], 'lesser_than' : [] },
-    'Postcard' : { 'word' : ['Standard Postcards', 'Xmas Postcard'], 're' : ['(P/c|[Pp]card|[Pp][Oo]st[\s]?[Cc]ard|Potsc)', 'Koren\s[Pp]ostcards?'], 'greater_than' : ['Computer Form'], 'lesser_than' : [] },
+    'Brochure' : { 'word' : [], 're' : ['.*[Bb][RrOo][OoRr][Cc][Hh][Uu][Rr][Ee]'], 'greater_than' : [], 'lesser_than' : [] },
+    'Folding Card' : { 'word' : ['Flip-Top Cards', 'Fold Card', 'Xmas Folding Card', 'Note-Size Folding', 'Die-Cut Folding'], 're' : ['.*([Ff][Oo]r?[Ll][Dd][Ii][Nn][Gg]|[Mm]ultifold)'], 'greater_than' : [], 'lesser_than' : [] },
+    'Postcard' : { 'word' : ['Standard Postcards', 'Xmas Postcard'], 're' : ['(P/c|[Pp]card|[Pp][Oo]st[\s]?[Cc]ard|Potsc)', 'Koren\s[Pp]ostcards?'], 'greater_than' : [], 'lesser_than' : [] },
     'Laser Card' : { 'word' : ['Four Up Post Card'], 're' : ['.*[Ll]a[sz]er\s(format|[Cc]ard)'], 'greater_than' : [], 'lesser_than' : [] },
     'Tape' : { 'word' : [], 're' : ['(\d+)[\s]{0,}[Tt]apes?'], 'greater_than' : [], 'lesser_than' : [] },
     'Tube' : { 'word' : [], 're' : ['(\d+)[\s]{0.}[Tt]ubes?'], 'greater_than' : [], 'lesser_than' : [] },
@@ -983,25 +983,25 @@ MEDIUMS = {
     'Bag' : { 'word' : [],  're' : ['.*([Tt]ote|[Bb]ag)'], 'greater_than' : [], 'lesser_than' : [] },
     'Spidertech' : { 'word' : [], 're' : ['Spidertech'], 'greater_than' : [], 'lesser_than' : [], 'use_value_for_description' : True },
     'Badge' : { 'word' : [], 're' : ['.*[Bb][Aa][Dd][Gg][Ee]'], 'greater_than' : [], 'lesser_than' : [] },
-    'Card' : { 'word' : ['Cards', 'Crads', 'Card', 'card'], 're' : [], 'greater_than' : [], 'lesser_than' : ['Folding Card'] },
+    'Card' : { 'word' : ['Cards', 'Crads', 'Card', 'card'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
     'Kit' : { 'word' : ['Kit', 'kit'], 're' : ['Take[\s]{1,}Home[\s]{1,}Kit'], 'greater_than' : [], 'lesser_than' : [] },
     'Stationary' : {
         'word' : ['Pen', 'Pencil', 'Pad', 'Scissors-type trimmer', 'Stationery', 'Eraser', 'Pin/Tacs', 'Bone Pen', 'Neck Stick Pen' ],
-        're' : [], 'greater_than' : [], 'lesser_than' : ['Paper']
+        're' : [], 'greater_than' : [], 'lesser_than' : []
     },
     'Sticker' : { 'word' : ['Sticker', 'Stickers', 'Sticker roll', 'Boxed Stickes', 'sticker', 'Roll of stickers', 'Personalised Stickers'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
     'Plaque' : { 'word' : ['wall plaque', 'Wall Plaque'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
-    'Computer Form' : { 'word' : ['Computer Form', 'Comp form', 'Compiter Form', 'comp form'], 're' : [], 'greater_than' : [], 'lesser_than' : ['Postcard'] },
+    'Computer Form' : { 'word' : ['Computer Form', 'Comp form', 'Compiter Form', 'comp form'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
     'Clipboard' : { 'word' : ['Clipboard'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
-    'Book' : { 'word' : [], 're' : ['[Bb]ooks?$'], 'greater_than' : ['Paper'], 'lesser_than' : ['Multimedia'] },
+    'Book' : { 'word' : [], 're' : ['[Bb]ooks?$'], 'greater_than' : [], 'lesser_than' : [] },
     'Clinic Supplies' : { 'word' : ['Clinic Supplies'], 're' : ['[Ww]all[\s]+[Cc]hart'], 'greater_than' : [], 'lesser_than' : [] },
     'Miscellaneous' : { 'word' : ['Miscellaneous'], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
     'Patient Education/Instruction' : { 'word' : [ 'Patient Education', 'Patient Instruction', 'Information Pads' ], 're' : [], 'greater_than' : [], 'lesser_than' : [] },
     'Multimedia' : {
         'word' : ['CD', 'Video', 'DVD', 'X-Ray', 'Audio Tapes Koren', 'Compact Disc', 'Video Tapes', 'Cassette', 'Book& CD', 'Brochure Disc', '6 Audio Tapes', 'Neck & Arm Pain DVD', '21st Century Smile DVD', 'CD of AMCT book', 'Virtual Tour DVD', 'Ted Koren Lecture Notes & CD', 'CD and Vaccination Notes', 'Smile after smile video', 'Waiting Room DVD-Pal Version', 'Patient Care CD', 'xray film', 'Basic Scan Protocol CD', 'Basic Scan Protocol DVD', 'Spinal Research Book/CD', 'Childhood Vaccination Book/CD', 'X-Ray film', 'X-ray Charts'],
-        're' : [], 'greater_than' : ['Book'], 'lesser_than' : []
+        're' : [], 'greater_than' : [], 'lesser_than' : []
     },
-    'Pamphlet' : { 'word' : [], 're' : ['[Pp]{1}amphlet'], 'greater_than' : ['Paper'], 'lesser_than' : [] },
+    'Pamphlet' : { 'word' : [], 're' : ['[Pp]{1}amphlet'], 'greater_than' : [], 'lesser_than' : [] },
     'Flyer' : { 'word' : [], 're' : ['[Ff]{1}lyer'], 'greater_than' : [], 'lesser_than' : [] },
     'Poster' : { 'word' : [], 're' : ['.*[Pp]{1}oster'], 'greater_than' : [], 'lesser_than' : [] },
     'Calendar' : { 'word' : [], 're' : ['.*[Cc]{1}[Aa][Ll][Ee][Nn][Dd][Aa][Rr].*'], 'greater_than' : [], 'lesser_than' : [] },
@@ -1106,10 +1106,19 @@ def determine_product_medium(word_dict, match_detail):
 def find_greatest_medium(medium_a, medium_b):
     # TODO Move Conditional Greater into MEDIUMS dict
     #   { 'Medium Name' : { 'greater_than' : 'Other Medium Name', 'by_source' : 'source that matched Medium Name' } }
+     #   'Paper' : { 'greater_than' : 'Clothing/Apparel', 'by_source': 'A4' },
     CONDITIONAL_GREATER = { 
-        'Multimedia' : { 'greater_than' : 'Tape', 'by_source' : 'Cassette' },
-        'Paper' : { 'greater_than' : 'Clothing/Apparel', 'by_source': 'A4' },
-        'Folding Card' : { 'greater_than' : 'Clothing/Apparel', 'by_source' : 'Flip-Top Cards'} 
+        'Multimedia' : { 'greater_than' : ['Tape', 'Brochure', 'Clothing/Apparel'], 'by_source' : ['Cassette', 'Brochure Disc', 'Neck & Arm Pain DVD'] },
+        'Folding Card' : { 'greater_than' : ['Clothing/Apparel', 'Paper', 'Postcard'], 'by_source' : ['Flip-Top Cards', 'Folding Card']},
+        'Postcard' : { 'greater_than' : ['Computer Form'], 'by_source' : ['Post Card'] },
+        'Laser Card' : { 'greater_than' : ['Postcard'], 'by_source' : ['4-Up laser format'] },
+        'Card' : { 'greater_than' : ['Folding Card'], 'by_source' : ['Card'] },
+        'Book' : { 'greater_than' : ['Paper'], 'by_source' : ['Books'] },
+        'Stationary' : { 'greater_than' : ['Clothing/Apparel', 'Paper'], 'by_source' : ['Neck Stick Pen', 'Stationery'] },
+        'Brochure' : { 'greater_than' : ['Folding Card', 'Paper'], 'by_source' : ['Patient Information Brochure', 'brochure'] },
+        'Pamphlet' : { 'greater_than' : ['Paper'], 'by_source' : ['Pamphlet'] },
+        'Patient Education/Instruction' : { 'greater_than' : ['Brochure'], 'by_source' : ['Patient Education'] },
+        'Clinic Supplies' : { 'greater_than' : ['Paper'], 'by_source' : ['Clinic Supplies'] }
     }
 
     # medium_a can possibly contain multiple Mediums as not all Mediums have been weighted for GREATNESS
@@ -1118,7 +1127,7 @@ def find_greatest_medium(medium_a, medium_b):
             # want to check if medium_b is greater than any mediums in medium_a list, if it is, medium_b should be returned; else medium_b is added to the list and list is returned
             if this_medium_a['medium']['name'] in MEDIUMS[medium_b['medium']['name']]['greater_than'] and medium_b['medium']['name'] in MEDIUMS[this_medium_a['medium']['name']]['lesser_than']:
                 return medium_b
-            elif medium_b['medium']['name'] in CONDITIONAL_GREATER and CONDITIONAL_GREATER[medium_b['medium']['name']]['greater_than'] == this_medium_a['medium']['name'] and CONDITIONAL_GREATER[medium_b['medium']['name']]['by_source'] == medium_b['source_value']:
+            elif medium_b['medium']['name'] in CONDITIONAL_GREATER and this_medium_a['medium']['name'] in CONDITIONAL_GREATER[medium_b['medium']['name']]['greater_than'] and medium_b['source_value'] in CONDITIONAL_GREATER[medium_b['medium']['name']]['by_source']:
                 return medium_b
 
         medium_a.append(medium_b)
@@ -1128,13 +1137,13 @@ def find_greatest_medium(medium_a, medium_b):
             # medium_a is GREATER THAN medium_b
         if medium_b['medium']['name'] in MEDIUMS[medium_a['medium']['name']]['greater_than'] and medium_a['medium']['name'] in MEDIUMS[medium_b['medium']['name']]['lesser_than']:
             return medium_a
-        elif medium_a['medium']['name'] in CONDITIONAL_GREATER and CONDITIONAL_GREATER[medium_a['medium']['name']]['greater_than'] == medium_b['medium']['name'] and CONDITIONAL_GREATER[medium_a['medium']['name']]['by_source'] == medium_a['source_value']:
+        elif medium_a['medium']['name'] in CONDITIONAL_GREATER and medium_b['medium']['name'] in CONDITIONAL_GREATER[medium_a['medium']['name']]['greater_than'] and medium_a['source_value'] in CONDITIONAL_GREATER[medium_a['medium']['name']]['by_source']:
             return medium_a
         
             # medium_b is GREATER THAN medium_a
         elif medium_a['medium']['name'] in MEDIUMS[medium_b['medium']['name']]['greater_than'] and medium_b['medium']['name'] in MEDIUMS[medium_a['medium']['name']]['lesser_than']:
             return medium_b
-        elif medium_b['medium']['name'] in CONDITIONAL_GREATER and CONDITIONAL_GREATER[medium_b['medium']['name']]['greater_than'] == medium_a['medium']['name'] and CONDITIONAL_GREATER[medium_b['medium']['name']]['by_source'] == medium_b['source_value']:
+        elif medium_b['medium']['name'] in CONDITIONAL_GREATER and medium_a['medium']['name'] in CONDITIONAL_GREATER[medium_b['medium']['name']]['greater_than'] and medium_b['source_value'] in CONDITIONAL_GREATER[medium_b['medium']['name']]['by_source']:
             return medium_b
         else:
             return [medium_a, medium_b]
