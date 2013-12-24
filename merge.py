@@ -203,8 +203,9 @@ def add_import_match_detail(matched_target_model, from_src_model, from_src_field
 
 #### Functions to convert source tables Company and Membadd into target tables Customer and CustomerContact
 def convert_source_company_and_membadd():
-    SRC_TABLES = [ SourceCompany, Membadd ]
+    #SRC_TABLES = [ SourceCompany, Membadd ]
     #SRC_TABLES = [ Membadd, SourceCompany ]
+    SRC_TABLES = [ SourceCompany ]
     use_saved_choices = None
     while use_saved_choices != 'y' and use_saved_choices != 'n':
         print 'Do you want to automatically use the last saved choice to handle duplicate company records? (y/n)'
@@ -1407,8 +1408,10 @@ def convert_source_borders():
 #  'QPI Margin': Profit made from this order.  Invoice Total - Order Cost - Delivery Charge == QPI Margin
 
 def convert_source_orders():
-    SRC_ORDER_TABLES = [ Orders, OrderHistory, Ro2 ]
-    SRC_ORDER_DETAIL_TABLES = [ OrderDetails, DetailsHistory ]
+    #SRC_ORDER_TABLES = [ Orders, OrderHistory, Ro2 ]
+    #SRC_ORDER_DETAIL_TABLES = [ OrderDetails, DetailsHistory ]
+    SRC_ORDER_TABLES = [ Orders ]
+    ONLY_PROCESS_ORDER_DETAILS_FROM = OrderDetails
 
     use_saved_choices = None
     while use_saved_choices != 'y' and use_saved_choices != 'n':
@@ -1457,68 +1460,77 @@ def convert_source_orders():
                 skipped_records += 1
                 continue
 
-            src_order_details_results = OrderDetails.objects.using(SOURCE_DB).filter(order_id=src_order.order_id)
-            order_details_records = src_order_details_results.count()
-            src_details_history_results = DetailsHistory.objects.using(SOURCE_DB).filter(order_id=src_order.order_id)
-            details_history_records = src_details_history_results.count()
+            if ONLY_PROCESS_ORDER_DETAILS_FROM:
+                src_order_details = ONLY_PROCESS_ORDER_DETAILS_FROM.objects.using(SOURCE_DB).filter(order_id=src_order.order_id)
+                if src_order_details.count() == 0:
+                    print 'Source Order', src_order.order_id, '(class:', src_order.__class__.__name__ + ')', 'has no associated records in Source Order Details table', inspect_model_obj(src_order)
+                    print 'Skipping Order'
+                    print "--------------------------------------------------------------------------------------------------------\n\n"
+                    skipped_records += 1
+                    continue
+            else:
+                src_order_details_results = OrderDetails.objects.using(SOURCE_DB).filter(order_id=src_order.order_id)
+                order_details_records = src_order_details_results.count()
+                src_details_history_results = DetailsHistory.objects.using(SOURCE_DB).filter(order_id=src_order.order_id)
+                details_history_records = src_details_history_results.count()
 
-            print 'Found', order_details_records, 'Source OrderDetails record(s) for Order ID', src_order.order_id
-            print 'Found', details_history_records, 'Source DetailsHistory record(s) for Order ID', src_order.order_id
+                print 'Found', order_details_records, 'Source OrderDetails record(s) for Order ID', src_order.order_id
+                print 'Found', details_history_records, 'Source DetailsHistory record(s) for Order ID', src_order.order_id
 
-            if not src_order.order_id in CURRENT_ORDER_CHOICES:
-                CURRENT_ORDER_CHOICES[src_order.order_id] = {}
+                if not src_order.order_id in CURRENT_ORDER_CHOICES:
+                    CURRENT_ORDER_CHOICES[src_order.order_id] = {}
 
-            if order_details_records > 0 and details_history_records > 0:
-                if order_details_records == details_history_records:
-                    src_order_details = None
-                    for detail_a in src_order_details_results:
-                        same_detail = False
-                        for detail_b in src_details_history_results:
-                            if same_order_details(detail_a, detail_b):
-                                same_detail = True
+                if order_details_records > 0 and details_history_records > 0:
+                    if order_details_records == details_history_records:
+                        src_order_details = None
+                        for detail_a in src_order_details_results:
+                            same_detail = False
+                            for detail_b in src_details_history_results:
+                                if same_order_details(detail_a, detail_b):
+                                    same_detail = True
+                                    break
+
+                            if not same_detail:
+                                print 'Source Order Details Record mismatch'
+                                if src_order.order_id in PREVIOUS_ORDER_CHOICES:
+                                    CURRENT_ORDER_CHOICES[src_order.order_id] = PREVIOUS_ORDER_CHOICES[src_order.order_id]
+                                    if PREVIOUS_ORDER_CHOICES[src_order.order_id]['OrderDetails'] and PREVIOUS_ORDER_CHOICES[src_order.order_id]['DetailsHistory']:
+                                        # merge
+                                        src_order_details = merge_order_detail_collections(src_order_details_results, src_details_history_results)
+                                    elif PREVIOUS_ORDER_CHOICES[src_order.order_id]['OrderDetails'] and not PREVIOUS_ORDER_CHOICES[src_order.order_id]['DetailsHistory']:
+                                        src_order_details = src_order_details_results
+                                    elif not PREVIOUS_ORDER_CHOICES[src_order.order_id]['OrderDetails'] and PREVIOUS_ORDER_CHOICES[src_order.order_id]['DetailsHistory']:
+                                        src_order_details = src_details_history_results
+                                else:
+                                    src_order_details = handle_mismatched_order_details_records(src_order_details_results, src_details_history_results, CURRENT_ORDER_CHOICES)
                                 break
 
-                        if not same_detail:
-                            print 'Source Order Details Record mismatch'
-                            if src_order.order_id in PREVIOUS_ORDER_CHOICES:
-                                CURRENT_ORDER_CHOICES[src_order.order_id] = PREVIOUS_ORDER_CHOICES[src_order.order_id]
-                                if PREVIOUS_ORDER_CHOICES[src_order.order_id]['OrderDetails'] and PREVIOUS_ORDER_CHOICES[src_order.order_id]['DetailsHistory']:
-                                    # merge
-                                    src_order_details = merge_order_detail_collections(src_order_details_results, src_details_history_results)
-                                elif PREVIOUS_ORDER_CHOICES[src_order.order_id]['OrderDetails'] and not PREVIOUS_ORDER_CHOICES[src_order.order_id]['DetailsHistory']:
-                                    src_order_details = src_order_details_results
-                                elif not PREVIOUS_ORDER_CHOICES[src_order.order_id]['OrderDetails'] and PREVIOUS_ORDER_CHOICES[src_order.order_id]['DetailsHistory']:
-                                    src_order_details = src_details_history_results
-                            else:
-                                src_order_details = handle_mismatched_order_details_records(src_order_details_results, src_details_history_results, CURRENT_ORDER_CHOICES)
-                            break
-
-                    if not src_order_details: # details results identical in OrderDetails and DetailsHistory
-                        CURRENT_ORDER_CHOICES[src_order.order_id]['OrderDetails'] = True
-                        CURRENT_ORDER_CHOICES[src_order.order_id]['DetailsHistory'] = False
-                        src_order_details = src_order_details_results
-                else: # number of records in OrderDetails and DetailsHistory do not match
-                    print 'Source Order Details record count mismatch!'
-                    src_order_details = handle_mismatched_order_details_records(src_order_details_results, src_details_history_results, CURRENT_ORDER_CHOICES)
-            elif order_details_records > 0 and details_history_records == 0:
-                CURRENT_ORDER_CHOICES[src_order.order_id]['OrderDetails'] = True
-                CURRENT_ORDER_CHOICES[src_order.order_id]['DetailsHistory'] = False
-                src_order_details = src_order_details_results
-            elif order_details_records == 0 and details_history_records > 0:
-                CURRENT_ORDER_CHOICES[src_order.order_id]['OrderDetails'] = False
-                CURRENT_ORDER_CHOICES[src_order.order_id]['DetailsHistory'] = True
-                src_order_details = src_details_history_results
-            elif order_details_records == 0 and details_history_records == 0:
-                print 'Source Order', src_order.order_id, '(class:', src_order.__class__.__name__ + ')', 'has no associated records in Source Order Details table', inspect_model_obj(src_order)
-                print 'Skipping Order'
-                print "--------------------------------------------------------------------------------------------------------\n\n"
-                skipped_records += 1
-                continue
-            else:
-                print 'Dunno wtf is going on ??? your order details table counts are whack!!!!!! skipping to next order...'
-                pause_terminal()
-                skipped_records += 1
-                continue
+                        if not src_order_details: # details results identical in OrderDetails and DetailsHistory
+                            CURRENT_ORDER_CHOICES[src_order.order_id]['OrderDetails'] = True
+                            CURRENT_ORDER_CHOICES[src_order.order_id]['DetailsHistory'] = False
+                            src_order_details = src_order_details_results
+                    else: # number of records in OrderDetails and DetailsHistory do not match
+                        print 'Source Order Details record count mismatch!'
+                        src_order_details = handle_mismatched_order_details_records(src_order_details_results, src_details_history_results, CURRENT_ORDER_CHOICES)
+                elif order_details_records > 0 and details_history_records == 0:
+                    CURRENT_ORDER_CHOICES[src_order.order_id]['OrderDetails'] = True
+                    CURRENT_ORDER_CHOICES[src_order.order_id]['DetailsHistory'] = False
+                    src_order_details = src_order_details_results
+                elif order_details_records == 0 and details_history_records > 0:
+                    CURRENT_ORDER_CHOICES[src_order.order_id]['OrderDetails'] = False
+                    CURRENT_ORDER_CHOICES[src_order.order_id]['DetailsHistory'] = True
+                    src_order_details = src_details_history_results
+                elif order_details_records == 0 and details_history_records == 0:
+                    print 'Source Order', src_order.order_id, '(class:', src_order.__class__.__name__ + ')', 'has no associated records in Source Order Details table', inspect_model_obj(src_order)
+                    print 'Skipping Order'
+                    print "--------------------------------------------------------------------------------------------------------\n\n"
+                    skipped_records += 1
+                    continue
+                else:
+                    print 'Dunno wtf is going on ??? your order details table counts are whack!!!!!! skipping to next order...'
+                    pause_terminal()
+                    skipped_records += 1
+                    continue
 
             try:
                 customer = Customer.objects.using(TARGET_DB).filter(from_src_company_id=src_order.company_id)[0]
