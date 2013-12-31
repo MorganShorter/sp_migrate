@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.db import models
+from django.template.defaultfilters import slugify
 from datetime import datetime
 #import os
 
@@ -50,6 +51,13 @@ class ImportNote(models.Model):
     src_model = models.CharField(max_length=50, null=True, blank=True)
     src_model_id_field = models.CharField(max_length=50, null=True, blank=True)
     src_model_id_text = models.CharField(max_length=50, null=True, blank=True)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(ImportNote, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s-%i" % (self.id, slugify(self.model), self.model_id)
+            super(ImportNote, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return self.type + ' Import Note for ' + self.model + '.id = ' + str(self.model_id)
@@ -78,7 +86,14 @@ class Customer(models.Model):
     delivery_country = models.CharField(max_length=100, default='Australia')
     from_src_company_id = models.IntegerField(null=True, blank=True)
     from_src_membadd_id = models.IntegerField(null=True, blank=True)
+    slug = models.SlugField(unique=True, max_length=150)
 
+    def save(self, *args, **kwargs):
+        super(Customer, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify(self.name))
+            super(Customer, self).save(*args, **kwargs)
+ 
     def __unicode__(self):
         return self.name
 
@@ -90,6 +105,13 @@ class CustomerContact(models.Model):
     surname = models.CharField(max_length=100)
     phone = models.CharField(max_length=40, blank=True, null=True)
     email = models.EmailField(max_length=255, blank=True, null=True)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(CustomerContact, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify("%s-%s" % (self.first_name, self.surname)))
+            super(CustomerContact, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return ' '.join((self.first_name, self.surname)).strip()
@@ -104,6 +126,13 @@ class Size(models.Model):
     notes = models.TextField(null=True)
     sub_notes = models.TextField(null=True)
     #notes = models.CharField(max_length=120, null=True)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(Size, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify("%s" % (self.__class__.__name__)))
+            super(Size, self).save(*args, **kwargs)
 
     def __unicode__(self):
         if self.width and self.height and self.depth:
@@ -120,6 +149,13 @@ class Medium(models.Model):
     description = models.CharField(max_length=400)
     notes = models.TextField(null=True)
     #notes = models.CharField(max_length=120, null=True)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(Medium, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify(self.name))
+            super(Medium, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return self.name
@@ -133,6 +169,13 @@ class RoyaltyImg(models.Model):
     image_height = models.PositiveSmallIntegerField(null=True)
     image_width = models.PositiveSmallIntegerField(null=True)
     percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(RoyaltyImg, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify(self.name))
+            super(RoyaltyImg, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return self.name
@@ -142,6 +185,13 @@ class Supplier(models.Model):
     """
     code = models.CharField(max_length=20)
     name = models.CharField(max_length=150)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(Supplier, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify(self.name))
+            super(Supplier, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return "%s : %s" % (code, name)
@@ -162,6 +212,13 @@ class Product(models.Model):
     medium = models.ForeignKey(Medium, related_name='+', null=True)
     royalty_img = models.ForeignKey(RoyaltyImg, related_name='+', null=True)
     supplier = models.ForeignKey(Supplier, related_name='products')
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(Product, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify(self.name))
+            super(Product, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return "%s (%s)" % (self.name, self.code)
@@ -170,6 +227,13 @@ class Catalog(models.Model):
     """ Catalog's SmartPractice advertise products in
     """
     name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(Catalog, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify(self.name))
+            super(Catalog, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return self.name
@@ -180,6 +244,13 @@ class CatalogIssue(models.Model):
     catalog = models.ForeignKey(Catalog, related_name='issues')
     products = models.ManyToManyField(Product, related_name='catalog_issues', through='CatalogIssueProduct')
     issue = models.CharField(max_length=80)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(CatalogIssue, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify("%s-%s" % (self.catalog.name, self.issue)))
+            super(CatalogIssue, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return self.issue
@@ -192,6 +263,13 @@ class CatalogIssueProduct(models.Model):
     sub_ref = models.CharField(max_length=3, null=True, blank=True)
     catalog_issue = models.ForeignKey(CatalogIssue)
     product = models.ForeignKey(Product)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(CatalogIssueProduct, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify("%s-%s-%s" % (self.catalog_issue.catalog.name, self.catalog_issue.issue, self.product.name)))
+            super(CatalogIssueProduct, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return "%s features in Issue %s of Catalog %s on Page %s Reference %s, %s" % (self.product, self.catalog_issue, self.catalog_issue.catalog, self.page_ref, self.img_ref, self.sub_ref)
@@ -201,6 +279,13 @@ class PriceLevelGroup(models.Model):
     """
     name = models.CharField(max_length=10)
     description = models.CharField(max_length=255, null=True, blank=True)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(PriceLevelGroup, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify(self.name))
+            super(PriceLevelGroup, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return self.name
@@ -221,6 +306,13 @@ class PriceLevel(models.Model):
     block_only = models.BooleanField(default=False)
     notes = models.TextField(null=True)
     #notes = models.CharField(max_length=255, null=True, blank=True)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(PriceLevel, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify("%s" % (self.__class__.__name__)))
+            super(PriceLevel, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return self.name
@@ -256,9 +348,16 @@ class Order(models.Model):
     from_src_order_id = models.IntegerField(null=True, blank=True)
     from_borders_fakeid = models.IntegerField(null=True, blank=True)
     order_notes = models.CharField(max_length=510, null=True, blank=True)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(Order, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify("%s" % (self.__class__.__name__)))
+            super(Order, self).save(*args, **kwargs)
 
     def __unicode__(self):
-        return self.name
+        return self.slug
 
 class OrderStatus(models.Model):
     """ Status for an Order; an Order can have multiple OrderStatus's as it progresses from Processing -> Shipped etc
@@ -284,9 +383,16 @@ class OrderStatus(models.Model):
     status = models.CharField(max_length=2, choices=ORDER_STATUS_CHOICES, default=PROCESSING)
     notes = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(OrderStatus, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify("%s" % (self.__class__.__name__)))
+            super(OrderStatus, self).save(*args, **kwargs)
 
     def __unicode__(self):
-        return self.name
+        return self.slug
     
 class OrderProduct(models.Model):
     """ 'Line Item' for an order; contains Product ordered on an Order with its quantity
@@ -301,9 +407,16 @@ class OrderProduct(models.Model):
     sp_price = models.DecimalField(max_digits=9, decimal_places=2, default=0)
     royalty_amount = models.DecimalField(max_digits=9, decimal_places=2, default=0)
     back_order = models.BooleanField(default=False)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(OrderProduct, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify("%s" % (self.__class__.__name__)))
+            super(OrderProduct, self).save(*args, **kwargs)
 
     def __unicode__(self):
-        return self.name
+        return self.slug
 
 class Company(models.Model):
     """ The various companies SmartPractice trade as; 'CAA' 'SP' etc
@@ -315,6 +428,13 @@ class Company(models.Model):
     logo_img = models.ImageField(upload_to='company_logos', max_length=255, height_field='logo_height', width_field='logo_width', null=True)
     logo_height = models.PositiveSmallIntegerField(null=True)
     logo_width = models.PositiveSmallIntegerField(null=True)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(Company, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify(self.name))
+            super(Company, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return self.name
@@ -325,9 +445,16 @@ class Invoice(models.Model):
     order = models.ForeignKey(Order, related_name='invoices')
     company = models.ForeignKey(Company, related_name='+')
     timestamp = models.DateTimeField(default=datetime.now)
+    slug = models.SlugField(unique=True, max_length=150)
+
+    def save(self, *args, **kwargs):
+        super(Invoice, self).save(*args, **kwargs)
+        if not self.slug:
+            self.slug = "%i-%s" % (self.id, slugify("%s-%s" % (self.__class__.__name__, self.company.name)))
+            super(Invoice, self).save(*args, **kwargs)
 
     def __unicode__(self):
-        return self.name
+        return self.slug
    
 ##### END SMART PRACTICE #####
 

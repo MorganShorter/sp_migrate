@@ -693,7 +693,7 @@ def convert_source_carddetails():
 # PageNo Catalogs
 # BT = Back Talk
 # D = Dental
-# K = Korean
+# K = Koren
 # V = Veterinary
 # CAA = Chiropractors Assoc...
 # O = Optom
@@ -710,12 +710,12 @@ def create_product_catalogs(product):
     CATALOG_MAP = { 'V' : 'Veterinary',
                     'AMI' : 'Activator Methods International Ltd',
                     'CAA' : 'Chiropractors Association of Australia',
-                    'O' : 'Optomerty',
+                    'O' : 'Optometry',
                     'D' : 'Dentistry',
                     'BT' : 'Back Talk Systems Inc',
                     'C' : 'Chiropractors',
                     'P' : 'Podiatry',
-                    'K' : 'Korean' }
+                    'K' : 'Koren' }
 
     page_no_re = re.compile('^([^\d\-]{1,})-?([\d]{1,})-([\d]{1,})(.*)$')
 
@@ -869,7 +869,7 @@ def determine_product_size_and_medium(src_size, src_type, match_detail):
             height = '8.5'
             notes = '4-Up'
         # {'size': u'3\xbd" x1"'}
-        elif src_size == '3\xbd" x1"':
+        elif src_size == u'3\xbd" x1"':
             width = '3'
             height = '1'
         # {'size': u'9" x 13" 23 x 33cm'}   <--- matches to CMs but picks up the inch numbers...
@@ -1234,11 +1234,11 @@ def create_product_price_levels(src_carddetail, product, price_level_group):
                         print 'Found existing PriceLevel', inspect_model_obj(existing_price_level), 'for PriceLevelGroup', inspect_model_obj(price_level_group)
                         print 'Adding Product to existing PriceLevel'
                         existing_price_level.products.add(product)
-                        if not save_model_obj(existing_price_level, True):
-                            print 'Error saving existing price level adding the Product', inspect_model_obj(product)
-                            pause_terminal()
-                        else:
-                            add_import_match_detail(existing_price_level, src_carddetail, [price_field, per_field], per_value)
+                        #if not save_model_obj(existing_price_level, True):
+                        #    print 'Error saving existing price level adding the Product', inspect_model_obj(product)
+                        #    pause_terminal()
+                        #else:
+                        add_import_match_detail(existing_price_level, src_carddetail, [price_field, per_field], per_value)
 
                         found_existing_price_level = True
                         break
@@ -1256,13 +1256,13 @@ def create_product_price_levels(src_carddetail, product, price_level_group):
                 if save_model_obj(price_level):
                     created += 1
                     price_level.products.add(product)
-                    if not save_model_obj(price_level, True):
-                        print 'Error re-saving new price level adding the Product!'
-                        print 'PriceLevel', inspect_model_obj(price_level)
-                        print 'Product', inspect_model_obj(product)
-                        pause_terminal()
-                    else:
-                        add_import_match_detail(price_level, src_carddetail, [price_field, per_field], per_value)
+                    #if not save_model_obj(price_level, True):
+                    #    print 'Error re-saving new price level adding the Product!'
+                    #    print 'PriceLevel', inspect_model_obj(price_level)
+                    #    print 'Product', inspect_model_obj(product)
+                    #    pause_terminal()
+                    #else:
+                    add_import_match_detail(price_level, src_carddetail, [price_field, per_field], per_value)
                 else:
                     failed += 1
 
@@ -1367,16 +1367,18 @@ def convert_source_borders():
                 created_order_products += 1
                 if order_product.discount_price and order_product.discount_price > 0:
                     back_order.discount += order_product.discount_price
-                    if not save_model_obj(back_order, True):
-                        print 'Error saving Back Order trying to update the total discount from a ordered product discount; Back Order:', inspect_model_obj(back_order)
-                        print 'OrderProduct:', inspect_model_obj(order_product), "\n"
-                        pause_terminal()
+                    back_order.save()
+                    #if not save_model_obj(back_order, True):
+                    #    print 'Error saving Back Order trying to update the total discount from a ordered product discount; Back Order:', inspect_model_obj(back_order)
+                    #    print 'OrderProduct:', inspect_model_obj(order_product), "\n"
+                    #    pause_terminal()
                 if order_product.unit_tax and order_product.unit_tax > 0:
                     back_order.tax += order_product.unit_tax * decimal.Decimal(order_product.quantity)
-                    if not save_model_obj(back_order, True):
-                        print 'Error saving Back Order trying to update the total tax from a ordered products unit tax; Back Order:', inspect_model_obj(back_order)
-                        print 'OrderProduct:', inspect_model_obj(order_product), "\n"
-                        pause_terminal()
+                    back_order.save()
+                    #if not save_model_obj(back_order, True):
+                    #    print 'Error saving Back Order trying to update the total tax from a ordered products unit tax; Back Order:', inspect_model_obj(back_order)
+                    #    print 'OrderProduct:', inspect_model_obj(order_product), "\n"
+                    #    pause_terminal()
             else:
                 print 'Error saving OrderProduct for Back Order; Back Orders only have one product meaning this back order has failed too.'
                 print 'Back Order:', inspect_model_object(back_order), 'OrderProduct:', inspect_model_object(order_product)
@@ -1628,21 +1630,23 @@ def convert_source_orders():
                         created_order_products += 1
                         if order_product.discount_price and order_product.discount_price > 0:
                             order.discount += order_product.discount_price
-                            if not save_model_obj(order, True):
-                                print 'Error saving Order trying to update the total discount from a ordered product discount; Order:', inspect_model_obj(order)
-                                print 'OrderProduct:', inspect_model_obj(order_product), "\n"
-                                pause_terminal()
+                            order.save()
+                            #if not save_model_obj(order):#, True):
+                            #    print 'Error saving Order trying to update the total discount from a ordered product discount; Order:', inspect_model_obj(order)
+                            #    print 'OrderProduct:', inspect_model_obj(order_product), "\n"
+                            #    pause_terminal()
                         if order_product.unit_tax and order_product.unit_tax > 0:
                             order.tax += order_product.unit_tax * decimal.Decimal(order_product.quantity)
-                            if not save_model_obj(order, True):
-                                print 'Error saving Order trying to update the total tax from a ordered products unit tax; Order:', inspect_model_obj(order)
-                                print 'OrderProduct:', inspect_model_obj(order_product), "\n"
-                                pause_terminal()
+                            order.save()
+                            #if not save_model_obj(order):#, True):
+                            #    print 'Error saving Order trying to update the total tax from a ordered products unit tax; Order:', inspect_model_obj(order)
+                            #    print 'OrderProduct:', inspect_model_obj(order_product), "\n"
+                            #    pause_terminal()
                     else:
                         print 'Error saving OrderProduct for Order'
                         print 'Order:', inspect_model_obj(order), 'OrderProduct:', inspect_model_obj(order_product)
                         failed_order_products += 1
-        
+
 
                 print "--------------------------------------------------------------------------------------------------------"
                 print "order.products (", order.products.count(), ") collection: " + inspect_model_collection(order.products.all())
@@ -1812,7 +1816,7 @@ def save_model_obj(model, silent=False):
             print model.__class__.__name__ + " fails validation! " + str(e.message_dict)
         valid = False
     except:
-        print "Unknown Error validating " + model.__class__.__name__
+        print "Unknown Error validating " + model.__class__.__name__, inspect_model_obj(model)
         pause_terminal()
         raise
 
