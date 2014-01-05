@@ -444,6 +444,7 @@ class Invoice(models.Model):
     """
     order = models.ForeignKey(Order, related_name='invoices')
     company = models.ForeignKey(Company, related_name='+')
+    number = models.PositiveIntegerField()
     timestamp = models.DateTimeField(default=datetime.now)
     slug = models.SlugField(unique=True, max_length=150)
 

@@ -1585,11 +1585,11 @@ def convert_source_orders():
 
                     if company:
                         if hasattr(src_order, 'invoice_date') and src_order.invoice_date:
-                            invoice = Invoice(order=order, company=company, timestamp=src_order.invoice_date)
+                            invoice = Invoice(order=order, company=company, timestamp=src_order.invoice_date, number=src_order.inv_no)
                         elif hasattr(src_order, 'invoice_due') and src_order.invoice_due:
-                            invoice = Invoice(order=order, company=company, timestamp=src_order.invoice_due)
+                            invoice = Invoice(order=order, company=company, timestamp=src_order.invoice_due, number=src_order.inv_no)
                         else:
-                            invoice = Invoice(order=order, company=company)
+                            invoice = Invoice(order=order, company=company, number=src_order.inv_no)
                             
                         if save_model_obj(invoice):
                             created_invoices += 1
