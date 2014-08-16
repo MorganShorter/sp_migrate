@@ -134,18 +134,9 @@ ORDERDETAILS_TABLEMAP = { 'quantity' : 'qty_out',
 # source table Borders contains Back ORDERS
 from source.models import Borders
 # we will import Back Orders as Standard Orders with the OrderProduct.back_order = true
-BORDERS_TABLEMAP = { 'from_borders_fakeid': 'fakeid',
-                     'order_date' : 'date',
-                     'wanted_by' : 'date',
-                     'total_cost' : 'total_price',
-                     'sub_total' : 'total_price',   # Borders table has no shipping cost, set sub_total to total_price
-                     'sp_cost' : 'total_cost' }
+BORDERS_TABLEMAP = { 'from_borders_fakeid': 'fakeid' }
 # Source Borders does not contain 'royalty' cost
-BORDERS_DETAIL_TABLEMAP = { 'quantity' : 'back_order_qty',
-                            'unit_price' : 'price_each',
-                            'sp_price' : 'cost_ea',
-                            'discount_percentage' : 'disc_p',
-                            'discount_price' : 'disc_d' }
+BORDERS_DETAIL_TABLEMAP = { 'amount' : 'back_order_qty' }
 
 
 from target.models import ImportNote
@@ -1294,7 +1285,6 @@ def same_price_level_details(existing_price_level, new_price_level):
 #   Cost Ea:  The price, for SmartPractice??, for 1x of this item.  Cost Ea is USUALLY < "Price Each", except 4 records, so this is my assumption....
 def convert_source_borders():
     created_back_orders, failed_back_orders = 0, 0
-    created_order_products, failed_order_products = 0, 0
     processed_records, skipped_records = 0, 0
 
     for src_border in Borders.objects.using(SOURCE_DB).all():
@@ -1308,7 +1298,7 @@ def convert_source_borders():
             skipped_records += 1
             continue
 
-        border_exists = Order.objects.using(TARGET_DB).filter(from_borders_fakeid=src_border.fakeid)
+        border_exists = BackOrder.objects.using(TARGET_DB).filter(from_borders_fakeid=src_border.fakeid)
         if border_exists.count() > 0:
             print "Found existing Back Order: " + inspect_model_obj(border_exists[0]) + "\n"
             print "Existing OrderProducts: " + inspect_model_collection(border_exists[0].products.all()) + "\n"
@@ -1342,52 +1332,10 @@ def convert_source_borders():
 
         processed_records += 1
 
-        back_order = Order(customer=customer)
-        dictionary_table_merge(BORDERS_TABLEMAP, src_border, back_order)
-        dictionary_table_merge(FOUND_CUSTOMER_ORDER_MAP, customer, back_order)
-
+        back_order = BackOrder(customer=customer, product=product, from_borders_fakeid=src_border.fakeid, amount=src_border.back_order_qty)
+        
         if save_model_obj(back_order):
-            order_status = OrderStatus(status='AS', notes='Imported Back Order', order=back_order)
-            if not save_model_obj(order_status):
-                print 'Could not save OrderStatus for Back Order', inspect_model_obj(back_order)
-                print 'OrderStatus:', inspect_model_obj(order_status)
-                print 'Back Order failed, skipping Border'
-                print "--------------------------------------------------------------------------------------------------------\n\n"
-                failed_back_orders += 1
-                continue
-
             created_back_orders += 1
-
-            order_product = OrderProduct(order=back_order, product=product, back_order=True)
-            dictionary_table_merge(BORDERS_DETAIL_TABLEMAP, src_border, order_product)
-            if order_product.unit_price and order_product.unit_price > 0 and src_border.date and src_border.date > GST_STARTED_DATE:
-                order_product.unit_tax = calculate_gst_component(order_product.unit_price)
-
-            if save_model_obj(order_product):
-                created_order_products += 1
-                if order_product.discount_price and order_product.discount_price > 0:
-                    back_order.discount += order_product.discount_price
-                    back_order.save()
-                    #if not save_model_obj(back_order, True):
-                    #    print 'Error saving Back Order trying to update the total discount from a ordered product discount; Back Order:', inspect_model_obj(back_order)
-                    #    print 'OrderProduct:', inspect_model_obj(order_product), "\n"
-                    #    pause_terminal()
-                if order_product.unit_tax and order_product.unit_tax > 0:
-                    back_order.tax += order_product.unit_tax * decimal.Decimal(order_product.quantity)
-                    back_order.save()
-                    #if not save_model_obj(back_order, True):
-                    #    print 'Error saving Back Order trying to update the total tax from a ordered products unit tax; Back Order:', inspect_model_obj(back_order)
-                    #    print 'OrderProduct:', inspect_model_obj(order_product), "\n"
-                    #    pause_terminal()
-            else:
-                print 'Error saving OrderProduct for Back Order; Back Orders only have one product meaning this back order has failed too.'
-                print 'Back Order:', inspect_model_object(back_order), 'OrderProduct:', inspect_model_object(order_product)
-                failed_order_products += 1
-                continue
-
-            print "--------------------------------------------------------------------------------------------------------"
-            print "back_order.products (", back_order.products.count(), ") collection: " + inspect_model_collection(back_order.products.all())
-            print "--------------------------------------------------------------------------------------------------------\n\n"
         else:
             failed_back_orders += 1
 
@@ -1396,8 +1344,7 @@ def convert_source_borders():
                      'processed': processed_records,
                      'skipped': skipped_records }
 
-    target_stats = [ ('Order', created_back_orders, failed_back_orders),
-                     ('OrderProduct', created_order_products, failed_order_products) ]
+    target_stats = [ ('Order', created_back_orders, failed_back_orders) ]
 
     print_convert_stats(source_stats, target_stats)
 ##### END
