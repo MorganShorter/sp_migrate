@@ -73,7 +73,7 @@ from source.models import SourcePriceLevel
 from target.models import PriceLevelGroup
 # Source table CardDetails contains our Product's, Stock contains stock for products
 from source.models import CardDetails, Stock
-from target.models import Product, Size, Medium, PriceLevel, RoyaltyImg, Supplier
+from target.models import Product, Size, Medium, PriceLevel, RoyaltyGroup, Supplier
 # Source table SpCatalogue2000 contains PageNo for where a Product is located in a Catalog
 from source.models import SpCatalogue2000
 # PageNo etc will be imported into our Catalog, CatalogIssue and CatalogIssueProduct models
@@ -252,6 +252,7 @@ def convert_source_company_and_membadd():
                 print 'Bailing Out'
                 sys.exit(1)
 
+            customer.set_slug()
             customer_exists = Customer.objects.using(TARGET_DB).filter(Q(from_src_company_id=src_customer.company_id) | Q(from_src_membadd_id=src_customer.company_id))
             if customer_exists.count() > 0:
                 found_duplicate_customer = False
@@ -605,7 +606,7 @@ def convert_source_carddetails():
             else:
                 royalty_name = str(royalty_percentage) + ' Percent'
             royalty_desc = 'Imported from RoyaltyFactor ' + str(src_carddetail.royaltyfactor)
-            royalty, created_royalty, failed_royalty = get_or_create_model(RoyaltyImg, {'name': royalty_name, 'description': royalty_desc, 'percentage' : royalty_percentage})
+            royalty, created_royalty, failed_royalty = get_or_create_model(RoyaltyGroup, {'name': royalty_name, 'description': royalty_desc, 'royalty' : royalty_percentage})
             if created_royalty:
                 created_royalty_imgs += 1
             if failed_royalty:
@@ -627,7 +628,11 @@ def convert_source_carddetails():
         if failed_supplier:
             failed_suppliers += 1
 
-        product = Product(medium=medium, royalty_img=royalty, size=size, supplier=supplier)
+        print '---medium:' + inspect_model_obj(medium)
+        print '---royalty_group:' + inspect_model_obj(royalty)
+        print '--supplier:' + inspect_model_obj(supplier)
+
+        product = Product(medium=medium, royalty_group=royalty, size=size, supplier=supplier)
         dictionary_table_merge(CARDDETAILS_MAP, src_carddetail, product)
 
         try:
@@ -672,7 +677,7 @@ def convert_source_carddetails():
                      ('Supplier', created_suppliers, failed_suppliers),
                      ('Size', created_sizes, failed_sizes),
                      ('Medium', created_mediums, failed_mediums),
-                     ('RoyaltyImg', created_royalty_imgs, failed_royalty_imgs),
+                     ('RoyaltyGroup', created_royalty_imgs, failed_royalty_imgs),
                      ('PriceLevelGroup', created_price_level_groups, failed_price_level_groups),
                      ('PriceLevel', created_price_levels, failed_price_levels),
                      ('Catalog', created_catalogs, failed_catalogs),
@@ -1207,12 +1212,7 @@ def create_product_price_levels(src_carddetail, product, price_level_group):
                 min_amt = max_amt = number_block.group(1)
                 per_value = 'number block match (' + str(min_amt) + ')'
 
-            if str(min_amt) == '1' or str(min_amt) == '0':
-                is_block_only = False
-            else:
-                is_block_only = True
-
-            price_level = PriceLevel(min_amount=min_amt, max_amount=max_amt, cost_per_block=price_value, cost_per_item=price_value, block_only=is_block_only, notes=notes)
+            price_level = PriceLevel(min_amount=min_amt, max_amount=max_amt, cost_per_item=price_value, notes=notes)
             found_existing_price_level = False
             # if we have a PriceLevelGroup, its possible this PriceLevel already exists.  If it exists, we just add this product to the pricelevel.
             if price_level_group:
@@ -1263,7 +1263,7 @@ def same_price_level_details(existing_price_level, new_price_level):
     print 'Comparing Existing PriceLevel', inspect_model_obj(existing_price_level)
     print 'With New PriceLevel', inspect_model_obj(new_price_level)
 
-    PRICELEVEL_COMPARE_COLS = [ 'min_amount', 'max_amount', 'cost_per_item', 'cost_per_block', 'block_only' ]
+    PRICELEVEL_COMPARE_COLS = [ 'min_amount', 'max_amount', 'cost_per_item' ]
 
     same_price_level = True
     for column in PRICELEVEL_COMPARE_COLS:
