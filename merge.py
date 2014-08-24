@@ -73,7 +73,7 @@ from source.models import SourcePriceLevel
 from target.models import PriceLevelGroup
 # Source table CardDetails contains our Product's, Stock contains stock for products
 from source.models import CardDetails, Stock
-from target.models import Product, Size, Medium, PriceLevel, RoyaltyGroup, Supplier
+from target.models import Product, Size, Medium, PriceLevel, RoyaltyGroup, Supplier, Note
 # Source table SpCatalogue2000 contains PageNo for where a Product is located in a Catalog
 from source.models import SpCatalogue2000
 # PageNo etc will be imported into our Catalog, CatalogIssue and CatalogIssueProduct models
@@ -84,7 +84,6 @@ CARDDETAILS_MAP = { 'code' : 'product_code',
                     'type' : 'type',
                     'description' : 'product_description',
                     'message' : 'message',
-                    'notes' : 'note',
                     'sp_cost' : 'cost_price_ea' }
 
 CARDDETAILS_STOCK_MAP = { 'current_stock' : 'qty',
@@ -328,7 +327,7 @@ def convert_source_company_and_membadd():
 
             if not customer.id:
                 processed_records += 1
-                if save_model_obj(customer):
+                if save_model_obj(customer, False, True):
                     created_customers += 1
                     if primary_contact:
                         primary_contact.customer = customer
@@ -529,6 +528,7 @@ def convert_source_carddetails():
     created_products, failed_products = 0, 0
     created_sizes, failed_sizes = 0, 0
     created_mediums, failed_mediums = 0, 0
+    created_notes, failed_notes = 0, 0
     created_price_levels, failed_price_levels = 0, 0
     created_price_level_groups, failed_price_level_groups = 0, 0
     created_royalty_imgs, failed_royalty_imgs = 0, 0
@@ -628,10 +628,6 @@ def convert_source_carddetails():
         if failed_supplier:
             failed_suppliers += 1
 
-        print '---medium:' + inspect_model_obj(medium)
-        print '---royalty_group:' + inspect_model_obj(royalty)
-        print '--supplier:' + inspect_model_obj(supplier)
-
         product = Product(medium=medium, royalty_group=royalty, size=size, supplier=supplier)
         dictionary_table_merge(CARDDETAILS_MAP, src_carddetail, product)
 
@@ -646,6 +642,15 @@ def convert_source_carddetails():
         if save_model_obj(product):
             created_products += 1
             price_level_group = None
+            
+            if src_carddetail.note:
+                note = Note(text=src_carddetail.note)
+                if save_model_obj(note):
+                    created_notes += 1
+                    product.notes.add(note)
+                else:
+                    failed_notes += 1
+
 
             if src_carddetail.pricelevel:
                 price_level_group, created_price_level_group, failed_price_level_group = get_or_create_model(PriceLevelGroup, {'name' : src_carddetail.pricelevel, 'description' : 'Imported PriceLevelGroup ' + src_carddetail.pricelevel})
@@ -677,6 +682,7 @@ def convert_source_carddetails():
                      ('Supplier', created_suppliers, failed_suppliers),
                      ('Size', created_sizes, failed_sizes),
                      ('Medium', created_mediums, failed_mediums),
+                     ('Note', created_notes, failed_notes),
                      ('RoyaltyGroup', created_royalty_imgs, failed_royalty_imgs),
                      ('PriceLevelGroup', created_price_level_groups, failed_price_level_groups),
                      ('PriceLevel', created_price_levels, failed_price_levels),
@@ -701,7 +707,7 @@ def create_product_catalogs(product):
     created_catalog_issues, failed_catalog_issues = 0, 0
     created_catalog_issue_products, failed_catalog_issue_products = 0, 0
 
-    CATALOG_ISSUE = 'ORiGiNEiL'
+    CATALOG_ISSUE = 'Original'
 
     CATALOG_MAP = { 'V' : 'Veterinary',
                     'AMI' : 'Activator Methods International Ltd',
@@ -1752,7 +1758,8 @@ def get_or_create_model(Model, column_map):
 
 # silent is set to true when updating an existing model (e.g. setting the tax for an order); without silent it appears like it has "Created a XYZClass...." when it really didnt
 @transaction.commit_manually(using=TARGET_DB)
-def save_model_obj(model, silent=False):
+def save_model_obj(model, silent=False, force_save=False):
+    prefix = ''
     try:
         model.full_clean()
         if not silent:
@@ -1763,30 +1770,34 @@ def save_model_obj(model, silent=False):
             print model.__class__.__name__ + " fails validation! " + str(e.message_dict)
         valid = False
     except:
-        print "Unknown Error validating " + model.__class__.__name__, inspect_model_obj(model)
-        pause_terminal()
-        raise
+        if force_save:
+            print "Unknown Error validating " + model.__class__.__name__, inspect_model_obj(model) + " FORCING SAVE!"
+            prefix = 'FORCE SAVE! '
+        else:
+            print "Unknown Error validating " + model.__class__.__name__, inspect_model_obj(model)
+            pause_terminal()
+            raise
 
     try:
         model.save(using=TARGET_DB)
         transaction.commit(using=TARGET_DB)
         if not silent:
-            print "Created " + model.__class__.__name__ + ": " + inspect_model_obj(model) + "\n"
+            print prefix + "Created " + model.__class__.__name__ + ": " + inspect_model_obj(model) + "\n"
         return True
     except django.db.utils.DatabaseError as e:
-        print "Database Error saving " + model.__class__.__name__ + ": " + str(e)
-        print model.__class__.__name__ + " Object: " + inspect_model_obj(model)
+        print prefix + "Database Error saving " + model.__class__.__name__ + ": " + str(e)
+        print prefix + model.__class__.__name__ + " Object: " + inspect_model_obj(model)
         transaction.rollback(using=TARGET_DB)
         pause_terminal()
         return False
     except:
-        print model.__class__.__name__ + " Object: " + inspect_model_obj(model)
+        print prefix + model.__class__.__name__ + " Object: " + inspect_model_obj(model)
         transaction.rollback(using=TARGET_DB)
         if not valid:
-            print 'Error saving ' + model.__class__.__name__ + ' (Failed validation; look above for cause)'
+            print prefix + 'Error saving ' + model.__class__.__name__ + ' (Failed validation; look above for cause)'
             pause_terminal()
         else:
-            print 'Unknown Error saving ' + model.__class__.__name__ + ' (raising error)'
+            print prefix + 'Unknown Error saving ' + model.__class__.__name__ + ' (raising error)'
             pause_terminal()
             raise
         return False
