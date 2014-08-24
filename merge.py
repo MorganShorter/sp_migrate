@@ -131,7 +131,7 @@ ORDERDETAILS_TABLEMAP = { 'quantity' : 'qty_out',
 
 # source table Borders contains Back ORDERS
 from source.models import Borders
-# we will import Back Orders as Standard Orders with the OrderProduct.back_order = true
+from target.models import BackOrder
 BORDERS_TABLEMAP = { 'from_borders_fakeid': 'fakeid' }
 # Source Borders does not contain 'royalty' cost
 BORDERS_DETAIL_TABLEMAP = { 'amount' : 'back_order_qty' }
