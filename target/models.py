@@ -506,6 +506,7 @@ class OrderProduct(models.Model):
     quantity = models.PositiveSmallIntegerField()
     last_quantity = models.PositiveSmallIntegerField(default=0)
     unit_price = models.DecimalField(max_digits=9, decimal_places=2, default=0)
+    unit_tax = models.DecimalField(max_digits=9, decimal_places=2, default=0)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     with_tax = models.BooleanField(default=False)
 

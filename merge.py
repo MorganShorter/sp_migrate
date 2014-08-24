@@ -127,7 +127,6 @@ ORDERDETAILS_TABLEMAP = { 'quantity' : 'qty_out',
                           'unit_price' : 'price_each',
                           'sp_price' : 'cost_ea',
                           'discount_percentage' : 'disc_p',
-                          'discount_price' : 'disc_d',
                           'royalty_amount' : 'royalty' }
 
 # source table Borders contains Back ORDERS
@@ -1578,23 +1577,10 @@ def convert_source_orders():
         
                     if order_product.unit_price and order_product.unit_price > 0 and src_order.date and src_order.date > GST_STARTED_DATE:
                         order_product.unit_tax = calculate_gst_component(order_product.unit_price)
+                        order_product.with_tax = True
 
                     if save_model_obj(order_product):
                         created_order_products += 1
-                        if order_product.discount_price and order_product.discount_price > 0:
-                            order.discount += order_product.discount_price
-                            order.save()
-                            #if not save_model_obj(order):#, True):
-                            #    print 'Error saving Order trying to update the total discount from a ordered product discount; Order:', inspect_model_obj(order)
-                            #    print 'OrderProduct:', inspect_model_obj(order_product), "\n"
-                            #    pause_terminal()
-                        if order_product.unit_tax and order_product.unit_tax > 0:
-                            order.tax += order_product.unit_tax * decimal.Decimal(order_product.quantity)
-                            order.save()
-                            #if not save_model_obj(order):#, True):
-                            #    print 'Error saving Order trying to update the total tax from a ordered products unit tax; Order:', inspect_model_obj(order)
-                            #    print 'OrderProduct:', inspect_model_obj(order_product), "\n"
-                            #    pause_terminal()
                     else:
                         print 'Error saving OrderProduct for Order'
                         print 'Order:', inspect_model_obj(order), 'OrderProduct:', inspect_model_obj(order_product)
